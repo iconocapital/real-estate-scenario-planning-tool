@@ -1,0 +1,1396 @@
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, CartesianGrid, Legend } from "recharts";
+import { Home, TrendingUp, DollarSign, Key, Scale, ChevronDown, ChevronUp, RotateCcw, Building2, Calculator, AlertTriangle, CheckCircle, ArrowRight, Minus, Settings, X } from "lucide-react";
+
+// ─── CONSTANTS ────────────────────────────────────────────────
+const PROPERTY = {
+  address: "559 Warren Street #5D",
+  building: "The Warren Building",
+  city: "Brooklyn, NY",
+  bedrooms: 2,
+  bathrooms: 1,
+  sqft: 1100,
+  purchaseDate: "January 2019",
+  purchasePrice: 565000,
+  currentBalance: 289350,
+  mortgageRate: 2.5,
+  monthlyPI: 2237,
+  monthlyHOA: 1807,
+  monthlyTaxes: 605,
+  monthlyInsurance: 0,
+  originalLoan: 452000,
+};
+
+const COMPS = [
+  { unit: "559 Warren #4E", price: 515000, date: "Aug 2024" },
+  { unit: "559 Warren #6B", price: 550000, date: "Jun 2024" },
+  { unit: "561 Warren #3A", price: 560000, date: "Aug 2024" },
+];
+
+const DEFAULT_STATE = {
+  estimatedSalePrice: 575000,
+  newHomePurchasePrice: 900000,
+  liquidSavings: 300000,
+  appreciationRate: 3,
+  filingStatus: "mfj",
+  yearsInResidence: 6,
+  capitalImprovements: 0,
+  brokerCommissionRate: 5,
+  federalCGTRate: 0.15,
+  incomeTaxBracket: 0.24,
+  yearsHeldAsRental: 5,
+  monthlyRent: 5500,
+  vacancyPercent: 5,
+  maintenancePercent: 10,
+  propertyManagementPercent: 0,
+  newMortgageRate: 6.5,
+  downPaymentPercent: 20,
+};
+
+// ─── FORMATTING ───────────────────────────────────────────────
+const fmt = (n) => {
+  if (n == null || isNaN(n)) return "$0";
+  const abs = Math.abs(n);
+  const formatted = abs >= 1000
+    ? "$" + abs.toLocaleString("en-US", { maximumFractionDigits: 0 })
+    : "$" + abs.toFixed(0);
+  return n < 0 ? "-" + formatted : formatted;
+};
+
+const fmtK = (n) => {
+  if (Math.abs(n) >= 1000000) return "$" + (n / 1000000).toFixed(1) + "M";
+  if (Math.abs(n) >= 1000) return "$" + Math.round(n / 1000) + "K";
+  return fmt(n);
+};
+
+const pct = (n) => (n * 100).toFixed(2) + "%";
+const pctClean = (n) => n.toFixed(1) + "%";
+
+// ─── ANIMATED NUMBER ──────────────────────────────────────────
+function AnimatedNumber({ value, format = fmt, duration = 800 }) {
+  const [display, setDisplay] = useState(0);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    let start = null;
+    const from = display;
+    const to = value;
+    const step = (ts) => {
+      if (!start) start = ts;
+      const progress = Math.min((ts - start) / duration, 1);
+      const ease = 1 - Math.pow(1 - progress, 3);
+      setDisplay(from + (to - from) * ease);
+      if (progress < 1) ref.current = requestAnimationFrame(step);
+    };
+    ref.current = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(ref.current);
+  }, [value]);
+
+  return <span style={{ fontFamily: "'Courier New', monospace" }}>{format(display)}</span>;
+}
+
+// ─── CARD COMPONENT ───────────────────────────────────────────
+function Card({ children, className = "", animate = true }) {
+  const [visible, setVisible] = useState(!animate);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!animate) return;
+    const obs = new IntersectionObserver(
+      ([e]) => { if (e.isIntersecting) { setVisible(true); obs.disconnect(); } },
+      { threshold: 0.1 }
+    );
+    if (ref.current) obs.observe(ref.current);
+    return () => obs.disconnect();
+  }, [animate]);
+
+  return (
+    <div
+      ref={ref}
+      className={className}
+      style={{
+        background: "#fff",
+        border: "2px solid #000",
+        boxShadow: "4px 4px 0 0 #000",
+        padding: "24px",
+        opacity: visible ? 1 : 0,
+        transform: visible ? "translateY(0)" : "translateY(20px)",
+        transition: "opacity 0.5s ease, transform 0.5s ease",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+// ─── SLIDER ───────────────────────────────────────────────────
+function Slider({ label, value, onChange, min, max, step = 1, suffix = "", prefix = "" }) {
+  return (
+    <div style={{ marginBottom: "12px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px", fontSize: "13px" }}>
+        <span style={{ fontWeight: 600 }}>{label}</span>
+        <span style={{ fontFamily: "'Courier New', monospace", fontWeight: 700, color: "#1C5355" }}>
+          {prefix}{typeof value === "number" && value >= 1000 ? value.toLocaleString() : value}{suffix}
+        </span>
+      </div>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(parseFloat(e.target.value))}
+        style={{ width: "100%", accentColor: "#1C5355" }}
+      />
+    </div>
+  );
+}
+
+// ─── NUMBER INPUT ─────────────────────────────────────────────
+function NumberInput({ label, value, onChange, prefix = "$", step = 1000 }) {
+  return (
+    <div style={{ marginBottom: "12px" }}>
+      <label style={{ display: "block", fontSize: "13px", fontWeight: 600, marginBottom: "4px" }}>{label}</label>
+      <div style={{ display: "flex", alignItems: "center", border: "2px solid #000", background: "#fff" }}>
+        {prefix && (
+          <span style={{ padding: "8px 0 8px 12px", fontWeight: 700, color: "#1C5355", fontFamily: "'Courier New', monospace" }}>
+            {prefix}
+          </span>
+        )}
+        <input
+          type="number"
+          value={value}
+          step={step}
+          onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
+          style={{
+            flex: 1,
+            padding: "8px 12px",
+            border: "none",
+            outline: "none",
+            fontFamily: "'Courier New', monospace",
+            fontWeight: 700,
+            fontSize: "14px",
+            background: "transparent",
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ─── SELECT INPUT ─────────────────────────────────────────────
+function SelectInput({ label, value, onChange, options }) {
+  return (
+    <div style={{ marginBottom: "12px" }}>
+      <label style={{ display: "block", fontSize: "13px", fontWeight: 600, marginBottom: "4px" }}>{label}</label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        style={{
+          width: "100%",
+          padding: "8px 12px",
+          border: "2px solid #000",
+          background: "#fff",
+          fontFamily: "'Courier New', monospace",
+          fontWeight: 700,
+          fontSize: "13px",
+          cursor: "pointer",
+        }}
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+// ─── BADGE ────────────────────────────────────────────────────
+function Badge({ children, color = "#1C5355", bg }) {
+  return (
+    <span
+      style={{
+        display: "inline-block",
+        padding: "4px 12px",
+        background: bg || color + "18",
+        color: color,
+        border: `2px solid ${color}`,
+        fontWeight: 800,
+        fontSize: "12px",
+        letterSpacing: "0.5px",
+        textTransform: "uppercase",
+        fontFamily: "'Courier New', monospace",
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
+// ─── BIG STAT ─────────────────────────────────────────────────
+function BigStat({ label, value, format = fmt, color = "#1C5355", sub }) {
+  return (
+    <div style={{ textAlign: "center", padding: "16px" }}>
+      <div style={{ fontSize: "12px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "1px", color: "#666", marginBottom: "4px" }}>
+        {label}
+      </div>
+      <div style={{ fontSize: "28px", fontWeight: 800, color, fontFamily: "'Courier New', monospace" }}>
+        <AnimatedNumber value={value} format={format} />
+      </div>
+      {sub && <div style={{ fontSize: "12px", color: "#888", marginTop: "2px" }}>{sub}</div>}
+    </div>
+  );
+}
+
+// ─── CALCULATION HOOK ─────────────────────────────────────────
+function useFinancialCalculations(state) {
+  const sellAnalysis = useMemo(() => {
+    const sale = state.estimatedSalePrice;
+    const nycTransferTaxRate = sale >= 500000 ? 0.01425 : 0.011;
+    const nycTransferTax = sale * nycTransferTaxRate;
+    const nysTransferTax = sale * 0.004;
+    const brokerCommission = sale * (state.brokerCommissionRate / 100);
+    const attorneyFee = 3000;
+    const mortgageSatisfactionFee = 500;
+    const miscFees = sale * 0.001;
+    const totalClosingCosts = nycTransferTax + nysTransferTax + brokerCommission + attorneyFee + mortgageSatisfactionFee + miscFees;
+    const netCashToSeller = sale - totalClosingCosts - PROPERTY.currentBalance;
+
+    const adjustedBasis = PROPERTY.purchasePrice + state.capitalImprovements;
+    const sellingCosts = totalClosingCosts;
+    const grossCapitalGain = sale - adjustedBasis - sellingCosts;
+    const exclusionLimit = state.filingStatus === "mfj" ? 500000 : 250000;
+    const qualifies121 = state.yearsInResidence >= 2;
+    const taxableGain = qualifies121 ? Math.max(0, grossCapitalGain - exclusionLimit) : Math.max(0, grossCapitalGain);
+    const federalTax = taxableGain * state.federalCGTRate;
+    const nysTax = taxableGain * 0.0685;
+    const nycTax = taxableGain * 0.03876;
+    const totalTax = federalTax + nysTax + nycTax;
+
+    return {
+      closingCosts: {
+        nycTransferTax, nycTransferTaxRate, nysTransferTax,
+        brokerCommission, brokerCommissionPercent: state.brokerCommissionRate,
+        attorneyFee, mortgageSatisfactionFee, miscFees, total: totalClosingCosts,
+      },
+      capitalGains: {
+        adjustedBasis, grossCapitalGain, sellingCosts, exclusionLimit,
+        taxableGain, federalRate: state.federalCGTRate, federalTax,
+        nysRate: 0.0685, nysTax, nycRate: 0.03876, nycTax, totalTax,
+        isExempt: taxableGain === 0, qualifies121,
+      },
+      netCashToSeller,
+    };
+  }, [state.estimatedSalePrice, state.brokerCommissionRate, state.capitalImprovements, state.filingStatus, state.yearsInResidence, state.federalCGTRate]);
+
+  const rentalAnalysis = useMemo(() => {
+    const rent = state.monthlyRent;
+    const effectiveGrossIncome = rent * (1 - state.vacancyPercent / 100);
+    const maintenance = rent * (state.maintenancePercent / 100);
+    const mgmt = rent * (state.propertyManagementPercent / 100);
+    const totalExpenses = PROPERTY.monthlyPI + PROPERTY.monthlyHOA + PROPERTY.monthlyTaxes + PROPERTY.monthlyInsurance + maintenance + mgmt;
+    const monthlyCashFlow = effectiveGrossIncome - totalExpenses;
+    const annualCashFlow = monthlyCashFlow * 12;
+    const equity = state.estimatedSalePrice - PROPERTY.currentBalance;
+    const returnOnEquity = equity > 0 ? (annualCashFlow / equity) * 100 : 0;
+
+    const buildingValue = state.estimatedSalePrice * 0.8;
+    const annualDepreciation = buildingValue / 27.5;
+    const annualTaxSavings = annualDepreciation * state.incomeTaxBracket;
+
+    const totalDepreciationTaken = annualDepreciation * state.yearsHeldAsRental;
+    const recaptureTax = totalDepreciationTaken * 0.25;
+
+    return {
+      effectiveGrossIncome, maintenance, mgmt, totalExpenses,
+      monthlyCashFlow, annualCashFlow, returnOnEquity,
+      buildingValue, annualDepreciation, annualTaxSavings,
+      totalDepreciationTaken, recaptureTax,
+    };
+  }, [state.monthlyRent, state.vacancyPercent, state.maintenancePercent, state.propertyManagementPercent, state.estimatedSalePrice, state.incomeTaxBracket, state.yearsHeldAsRental]);
+
+  const equityProjection = useMemo(() => {
+    const years = [];
+    let propertyValue = state.estimatedSalePrice;
+    let balance = PROPERTY.currentBalance;
+    const monthlyRate = PROPERTY.mortgageRate / 100 / 12;
+    const monthlyPayment = PROPERTY.monthlyPI;
+    let cumulativeCashFlow = 0;
+
+    for (let y = 0; y <= state.yearsHeldAsRental; y++) {
+      const equity = propertyValue - balance;
+      years.push({
+        year: y,
+        propertyValue: Math.round(propertyValue),
+        mortgageBalance: Math.round(balance),
+        equity: Math.round(equity),
+        cumulativeCashFlow: Math.round(cumulativeCashFlow),
+        combined: Math.round(equity + cumulativeCashFlow),
+      });
+      // Advance 12 months
+      for (let m = 0; m < 12; m++) {
+        const interest = balance * monthlyRate;
+        const principal = monthlyPayment - interest;
+        balance = Math.max(0, balance - principal);
+      }
+      propertyValue *= (1 + state.appreciationRate / 100);
+      cumulativeCashFlow += rentalAnalysis.annualCashFlow;
+    }
+    return years;
+  }, [state.estimatedSalePrice, state.appreciationRate, state.yearsHeldAsRental, rentalAnalysis.annualCashFlow]);
+
+  const buyingPower = useMemo(() => {
+    const calcMortgagePayment = (principal, rateAnnual, years = 30) => {
+      const r = rateAnnual / 100 / 12;
+      const n = years * 12;
+      if (r === 0) return principal / n;
+      return principal * (r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+    };
+
+    const calcBuyerClosingCosts = (purchasePrice, loanAmount) => {
+      const mortgageRecordingTaxRate = loanAmount >= 500000 ? 0.0205 : 0.018;
+      const mortgageRecordingTax = loanAmount * mortgageRecordingTaxRate;
+      let mansionTaxRate = 0;
+      if (purchasePrice >= 5000000) mansionTaxRate = 0.02;
+      else if (purchasePrice >= 3000000) mansionTaxRate = 0.015;
+      else if (purchasePrice >= 2000000) mansionTaxRate = 0.0125;
+      else if (purchasePrice >= 1000000) mansionTaxRate = 0.01;
+      const mansionTax = purchasePrice * mansionTaxRate;
+      const titleInsurance = purchasePrice * 0.005;
+      const attorneyFee = 3000;
+      const inspectionMisc = 2000;
+      const total = mortgageRecordingTax + mansionTax + titleInsurance + attorneyFee + inspectionMisc;
+      return { mortgageRecordingTax, mortgageRecordingTaxRate, mansionTax, mansionTaxRate, titleInsurance, attorneyFee, inspectionMisc, total, effectivePct: (total / purchasePrice) * 100 };
+    };
+
+    const newPrice = state.newHomePurchasePrice;
+    const dpPct = state.downPaymentPercent / 100;
+
+    // Option A: Sell & Buy
+    const aDownPayment = sellAnalysis.netCashToSeller;
+    const aLoan = newPrice - aDownPayment;
+    const aClosing = calcBuyerClosingCosts(newPrice, aLoan > 0 ? aLoan : 0);
+    const aNetForDP = aDownPayment - aClosing.total;
+    const aActualLoan = newPrice - Math.max(0, aNetForDP);
+    const aPI = calcMortgagePayment(Math.max(0, aActualLoan), state.newMortgageRate);
+    const aTaxes = (newPrice * 0.012) / 12;
+    const aInsurance = 200;
+    const aPITI = aPI + aTaxes + aInsurance;
+
+    // Option B: Keep & Buy
+    const bDownPayment = state.liquidSavings;
+    const bLoan = newPrice - bDownPayment;
+    const bClosing = calcBuyerClosingCosts(newPrice, bLoan > 0 ? bLoan : 0);
+    const bNetForDP = bDownPayment - bClosing.total;
+    const bActualLoan = newPrice - Math.max(0, bNetForDP);
+    const bPI = calcMortgagePayment(Math.max(0, bActualLoan), state.newMortgageRate);
+    const bTaxes = (newPrice * 0.012) / 12;
+    const bInsurance = 200;
+    const bPITI = bPI + bTaxes + bInsurance;
+
+    // Max buying power (20% down target)
+    const aMaxPrice = aNetForDP > 0 ? aNetForDP / dpPct : 0;
+    const bMaxPrice = bNetForDP > 0 ? bNetForDP / dpPct : 0;
+
+    return {
+      optionA: { downPayment: aDownPayment, closingCosts: aClosing, netForDP: aNetForDP, loanAmount: aActualLoan, monthlyPI: aPI, monthlyTaxes: aTaxes, monthlyInsurance: aInsurance, monthlyPITI: aPITI, maxPrice: aMaxPrice },
+      optionB: { downPayment: bDownPayment, closingCosts: bClosing, netForDP: bNetForDP, loanAmount: bActualLoan, monthlyPI: bPI, monthlyTaxes: bTaxes, monthlyInsurance: bInsurance, monthlyPITI: bPITI, maxPrice: bMaxPrice },
+    };
+  }, [sellAnalysis.netCashToSeller, state.newHomePurchasePrice, state.liquidSavings, state.newMortgageRate, state.downPaymentPercent]);
+
+  return { sellAnalysis, rentalAnalysis, equityProjection, buyingPower };
+}
+
+// ─── CHART COLORS ─────────────────────────────────────────────
+const COLORS = ["#1C5355", "#4EB8BC", "#E8A838", "#D94F4F", "#7C6BBF", "#5B9E5B"];
+const CHART_TOOLTIP_STYLE = { contentStyle: { border: "2px solid #000", boxShadow: "2px 2px 0 0 #000", fontFamily: "'Courier New', monospace", fontSize: "12px" } };
+
+// ─── TAB: OVERVIEW ────────────────────────────────────────────
+function OverviewTab({ state }) {
+  const equity = state.estimatedSalePrice - PROPERTY.currentBalance;
+  const totalMonthly = PROPERTY.monthlyPI + PROPERTY.monthlyHOA + PROPERTY.monthlyTaxes + PROPERTY.monthlyInsurance;
+  const avgPSF = Math.round(COMPS.reduce((s, c) => s + c.price, 0) / COMPS.length / PROPERTY.sqft);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
+        <Card>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
+            <Home size={20} color="#1C5355" />
+            <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "1px" }}>Property Details</h3>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+            {[
+              ["Bedrooms", PROPERTY.bedrooms],
+              ["Bathrooms", PROPERTY.bathrooms],
+              ["Square Feet", PROPERTY.sqft.toLocaleString()],
+              ["Building", PROPERTY.building],
+            ].map(([l, v]) => (
+              <div key={l}>
+                <div style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px", color: "#888", fontWeight: 700 }}>{l}</div>
+                <div style={{ fontSize: "18px", fontWeight: 800, fontFamily: "'Courier New', monospace" }}>{v}</div>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        <Card>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <Building2 size={20} color="#1C5355" />
+              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "1px" }}>Mortgage Status</h3>
+            </div>
+            <Badge color="#E8A838" bg="#E8A83822">🔥 2.5% RATE</Badge>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+            {[
+              ["Original Loan", fmt(PROPERTY.originalLoan)],
+              ["Current Balance", fmt(PROPERTY.currentBalance)],
+              ["Monthly P&I", fmt(PROPERTY.monthlyPI)],
+              ["Monthly HOA", fmt(PROPERTY.monthlyHOA)],
+              ["Monthly Taxes", fmt(PROPERTY.monthlyTaxes)],
+              ["TOTAL MONTHLY", fmt(totalMonthly)],
+            ].map(([l, v], i) => (
+              <div key={l} style={i === 5 ? { gridColumn: "1 / -1", borderTop: "2px solid #000", paddingTop: "12px", marginTop: "4px" } : {}}>
+                <div style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px", color: "#888", fontWeight: 700 }}>{l}</div>
+                <div style={{ fontSize: i === 5 ? "24px" : "18px", fontWeight: 800, fontFamily: "'Courier New', monospace", color: i === 5 ? "#1C5355" : "#000" }}>{v}</div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
+
+      <Card>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
+          <TrendingUp size={20} color="#1C5355" />
+          <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "1px" }}>Market Valuation</h3>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px", marginBottom: "20px" }}>
+          <BigStat label="Purchase Price" value={PROPERTY.purchasePrice} color="#666" sub={PROPERTY.purchaseDate} />
+          <BigStat label="Estimated Value" value={state.estimatedSalePrice} color="#1C5355" sub="Current Market" />
+          <BigStat label="Current Equity" value={equity} color="#4EB8BC" sub={fmt(equity) + " available"} />
+        </div>
+
+        <h4 style={{ fontSize: "13px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "1px", marginBottom: "8px" }}>Comparable Sales</h4>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "'Courier New', monospace", fontSize: "13px" }}>
+          <thead>
+            <tr style={{ borderBottom: "2px solid #000" }}>
+              <th style={{ textAlign: "left", padding: "8px 12px", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px" }}>Unit</th>
+              <th style={{ textAlign: "right", padding: "8px 12px", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px" }}>Sale Price</th>
+              <th style={{ textAlign: "right", padding: "8px 12px", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px" }}>Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            {COMPS.map((c) => (
+              <tr key={c.unit} style={{ borderBottom: "1px solid #eee" }}>
+                <td style={{ padding: "8px 12px", fontWeight: 600 }}>{c.unit}</td>
+                <td style={{ padding: "8px 12px", textAlign: "right", fontWeight: 700 }}>{fmt(c.price)}</td>
+                <td style={{ padding: "8px 12px", textAlign: "right", color: "#888" }}>{c.date}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div style={{ textAlign: "right", marginTop: "8px", fontSize: "12px", color: "#888" }}>
+          Building Avg: <strong style={{ color: "#1C5355" }}>~${avgPSF}/sqft</strong>
+        </div>
+      </Card>
+
+      <div
+        style={{
+          background: "#1C535510",
+          border: "2px solid #1C5355",
+          boxShadow: "4px 4px 0 0 #1C5355",
+          padding: "20px 24px",
+          display: "flex",
+          alignItems: "flex-start",
+          gap: "12px",
+        }}
+      >
+        <CheckCircle size={24} color="#1C5355" style={{ flexShrink: 0, marginTop: "2px" }} />
+        <div>
+          <div style={{ fontWeight: 800, fontSize: "14px", marginBottom: "4px", color: "#1C5355" }}>
+            SECTION 121 CAPITAL GAINS EXCLUSION
+          </div>
+          <div style={{ fontSize: "14px", lineHeight: 1.5 }}>
+            You have lived here {state.yearsInResidence}+ years. You qualify for the full Section 121 capital gains exclusion
+            ({state.filingStatus === "mfj" ? "$500K MFJ" : "$250K Single"}).
+            {state.yearsInResidence >= 2
+              ? " As of today, $0 in capital gains tax is owed on a sale."
+              : " Note: You need at least 2 years of primary residence to qualify."}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── TAB: SELL ────────────────────────────────────────────────
+function SellTab({ state, sellAnalysis }) {
+  const { closingCosts: cc, capitalGains: cg, netCashToSeller } = sellAnalysis;
+
+  const waterfallData = [
+    { name: "Sale Price", value: state.estimatedSalePrice, fill: "#1C5355" },
+    { name: "Closing Costs", value: -cc.total, fill: "#D94F4F" },
+    { name: "Mortgage Payoff", value: -PROPERTY.currentBalance, fill: "#E8A838" },
+    { name: "Taxes", value: -cg.totalTax, fill: "#7C6BBF" },
+    { name: "Net Proceeds", value: netCashToSeller - cg.totalTax, fill: "#4EB8BC" },
+  ];
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+      <Card>
+        <h3 style={{ margin: "0 0 16px", fontSize: "16px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "1px" }}>
+          📋 NYC / Brooklyn Seller Closing Costs
+        </h3>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "'Courier New', monospace", fontSize: "13px" }}>
+          <tbody>
+            {[
+              ["NYC Transfer Tax", `${(cc.nycTransferTaxRate * 100).toFixed(3)}%`, cc.nycTransferTax],
+              ["NYS Transfer Tax", "0.400%", cc.nysTransferTax],
+              ["Broker Commission", `${cc.brokerCommissionPercent.toFixed(1)}%`, cc.brokerCommission],
+              ["Attorney Fee", "Flat", cc.attorneyFee],
+              ["Mortgage Satisfaction", "Flat", cc.mortgageSatisfactionFee],
+              ["Miscellaneous", "0.100%", cc.miscFees],
+            ].map(([label, rate, val]) => (
+              <tr key={label} style={{ borderBottom: "1px solid #eee" }}>
+                <td style={{ padding: "10px 12px", fontWeight: 600 }}>{label}</td>
+                <td style={{ padding: "10px 12px", textAlign: "center", color: "#888" }}>{rate}</td>
+                <td style={{ padding: "10px 12px", textAlign: "right", fontWeight: 700 }}>{fmt(val)}</td>
+              </tr>
+            ))}
+            <tr style={{ borderTop: "3px solid #000" }}>
+              <td colSpan={2} style={{ padding: "12px", fontWeight: 900, fontSize: "14px" }}>TOTAL CLOSING COSTS</td>
+              <td style={{ padding: "12px", textAlign: "right", fontWeight: 900, fontSize: "16px", color: "#D94F4F" }}>{fmt(cc.total)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </Card>
+
+      <Card>
+        <h3 style={{ margin: "0 0 16px", fontSize: "16px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "1px" }}>
+          💰 Net-to-Seller Waterfall
+        </h3>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "'Courier New', monospace", fontSize: "13px" }}>
+          <tbody>
+            {[
+              ["Gross Sale Price", state.estimatedSalePrice, false],
+              ["NYC Transfer Tax", -cc.nycTransferTax, true],
+              ["NYS Transfer Tax", -cc.nysTransferTax, true],
+              ["Broker Commission", -cc.brokerCommission, true],
+              ["Attorney / Misc / Fees", -(cc.attorneyFee + cc.mortgageSatisfactionFee + cc.miscFees), true],
+              ["Mortgage Payoff", -PROPERTY.currentBalance, true],
+            ].map(([label, val, neg]) => (
+              <tr key={label} style={{ borderBottom: "1px solid #eee" }}>
+                <td style={{ padding: "8px 12px", fontWeight: 600 }}>{neg ? "−  " : ""}{label}</td>
+                <td style={{ padding: "8px 12px", textAlign: "right", fontWeight: 700, color: neg ? "#D94F4F" : "#000" }}>{fmt(Math.abs(val))}</td>
+              </tr>
+            ))}
+            <tr style={{ borderTop: "3px solid #000", background: "#1C535508" }}>
+              <td style={{ padding: "12px", fontWeight: 900, fontSize: "15px", color: "#1C5355" }}>=  NET CASH TO SELLER</td>
+              <td style={{ padding: "12px", textAlign: "right", fontWeight: 900, fontSize: "20px", color: "#1C5355" }}>{fmt(netCashToSeller)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </Card>
+
+      <Card>
+        <h3 style={{ margin: "0 0 16px", fontSize: "16px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "1px" }}>
+          📊 Capital Gains Tax Breakdown
+        </h3>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "'Courier New', monospace", fontSize: "13px" }}>
+          <tbody>
+            {[
+              ["Adjusted Basis (Purchase + Improvements)", cg.adjustedBasis],
+              ["Total Selling Costs", cg.sellingCosts],
+              ["Gross Capital Gain", cg.grossCapitalGain],
+              ["Section 121 Exclusion", -cg.exclusionLimit],
+              ["Taxable Gain", cg.taxableGain],
+            ].map(([label, val]) => (
+              <tr key={label} style={{ borderBottom: "1px solid #eee" }}>
+                <td style={{ padding: "8px 12px", fontWeight: 600 }}>{label}</td>
+                <td style={{ padding: "8px 12px", textAlign: "right", fontWeight: 700 }}>{fmt(val)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {cg.isExempt ? (
+          <div style={{ marginTop: "16px", padding: "16px", background: "#1C535515", border: "2px solid #1C5355", textAlign: "center" }}>
+            <div style={{ fontSize: "24px", fontWeight: 900, color: "#1C5355" }}>✓ $0 CAPITAL GAINS TAX</div>
+            <div style={{ fontSize: "13px", color: "#1C5355", marginTop: "4px" }}>
+              Full Section 121 exclusion applies ({state.filingStatus === "mfj" ? "$500K MFJ" : "$250K Single"})
+            </div>
+          </div>
+        ) : (
+          <div style={{ marginTop: "16px" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "'Courier New', monospace", fontSize: "13px" }}>
+              <tbody>
+                {[
+                  [`Federal CGT (${(cg.federalRate * 100).toFixed(0)}%)`, cg.federalTax],
+                  ["NYS CGT (6.85%)", cg.nysTax],
+                  ["NYC CGT (3.876%)", cg.nycTax],
+                ].map(([l, v]) => (
+                  <tr key={l} style={{ borderBottom: "1px solid #eee" }}>
+                    <td style={{ padding: "8px 12px", fontWeight: 600 }}>{l}</td>
+                    <td style={{ padding: "8px 12px", textAlign: "right", fontWeight: 700, color: "#D94F4F" }}>{fmt(v)}</td>
+                  </tr>
+                ))}
+                <tr style={{ borderTop: "2px solid #000" }}>
+                  <td style={{ padding: "10px 12px", fontWeight: 900 }}>TOTAL TAX OWED</td>
+                  <td style={{ padding: "10px 12px", textAlign: "right", fontWeight: 900, fontSize: "18px", color: "#D94F4F" }}>{fmt(cg.totalTax)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+
+      <Card>
+        <h3 style={{ margin: "0 0 16px", fontSize: "16px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "1px" }}>
+          Sale Proceeds Waterfall
+        </h3>
+        <ResponsiveContainer width="100%" height={280}>
+          <BarChart data={waterfallData} layout="vertical" margin={{ left: 20, right: 20 }}>
+            <XAxis type="number" tickFormatter={fmtK} style={{ fontFamily: "'Courier New', monospace", fontSize: "11px" }} />
+            <YAxis dataKey="name" type="category" width={120} style={{ fontFamily: "'Courier New', monospace", fontSize: "11px" }} />
+            <Tooltip formatter={(v) => fmt(Math.abs(v))} {...CHART_TOOLTIP_STYLE} />
+            <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+              {waterfallData.map((entry, i) => (
+                <Cell key={i} fill={entry.fill} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </Card>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
+        <Card>
+          <h3 style={{ margin: "0 0 12px", fontSize: "14px", fontWeight: 800, color: "#1C5355" }}>✓ Advantages</h3>
+          {[
+            "Immediate cash of ~" + fmtK(netCashToSeller),
+            "Unlock buying power for next home",
+            "Simplify finances — no landlord headaches",
+            "CGT-free window while exclusion applies",
+            "Eliminate $4,649/mo carrying costs",
+          ].map((t) => (
+            <div key={t} style={{ fontSize: "13px", padding: "6px 0", display: "flex", gap: "8px", alignItems: "flex-start" }}>
+              <span style={{ color: "#1C5355", fontWeight: 800 }}>+</span>
+              <span>{t}</span>
+            </div>
+          ))}
+        </Card>
+        <Card>
+          <h3 style={{ margin: "0 0 12px", fontSize: "14px", fontWeight: 800, color: "#D94F4F" }}>✗ Trade-offs</h3>
+          {[
+            "Lose irreplaceable 2.5% mortgage rate",
+            "Give up potential appreciation upside",
+            "Transaction costs ~7-8% round trip",
+            "Must time sale and purchase",
+            "Emotional cost of selling home",
+          ].map((t) => (
+            <div key={t} style={{ fontSize: "13px", padding: "6px 0", display: "flex", gap: "8px", alignItems: "flex-start" }}>
+              <span style={{ color: "#D94F4F", fontWeight: 800 }}>−</span>
+              <span>{t}</span>
+            </div>
+          ))}
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+// ─── TAB: RENT ────────────────────────────────────────────────
+function RentTab({ state, setState, rentalAnalysis, equityProjection }) {
+  const ra = rentalAnalysis;
+  const expense_data = [
+    { name: "Mortgage", value: PROPERTY.monthlyPI },
+    { name: "HOA", value: PROPERTY.monthlyHOA },
+    { name: "Taxes", value: PROPERTY.monthlyTaxes },
+    { name: "Maintenance", value: ra.maintenance },
+    ...(ra.mgmt > 0 ? [{ name: "Mgmt", value: ra.mgmt }] : []),
+  ];
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+      <Card>
+        <h3 style={{ margin: "0 0 16px", fontSize: "16px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "1px" }}>
+          🎛️ Rental Income Calculator
+        </h3>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 24px" }}>
+          <Slider label="Monthly Rent" value={state.monthlyRent} onChange={(v) => setState((s) => ({ ...s, monthlyRent: v }))} min={4000} max={7000} step={100} prefix="$" suffix="" />
+          <Slider label="Vacancy Reserve" value={state.vacancyPercent} onChange={(v) => setState((s) => ({ ...s, vacancyPercent: v }))} min={0} max={15} step={1} suffix="%" />
+          <Slider label="Maintenance Reserve" value={state.maintenancePercent} onChange={(v) => setState((s) => ({ ...s, maintenancePercent: v }))} min={5} max={20} step={1} suffix="%" />
+          <Slider label="Property Management" value={state.propertyManagementPercent} onChange={(v) => setState((s) => ({ ...s, propertyManagementPercent: v }))} min={0} max={12} step={1} suffix="%" />
+        </div>
+      </Card>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "20px" }}>
+        <Card>
+          <BigStat label="Effective Income" value={ra.effectiveGrossIncome} color="#1C5355" sub="/month" />
+        </Card>
+        <Card>
+          <BigStat label="Total Expenses" value={ra.totalExpenses} color="#D94F4F" sub="/month" />
+        </Card>
+        <Card>
+          <BigStat
+            label="Net Cash Flow"
+            value={ra.monthlyCashFlow}
+            color={ra.monthlyCashFlow >= 0 ? "#1C5355" : "#D94F4F"}
+            sub="/month"
+          />
+        </Card>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
+        <Card>
+          <h4 style={{ margin: "0 0 12px", fontSize: "14px", fontWeight: 800, textTransform: "uppercase" }}>Expense Breakdown</h4>
+          <ResponsiveContainer width="100%" height={220}>
+            <PieChart>
+              <Pie data={expense_data} cx="50%" cy="50%" outerRadius={80} innerRadius={45} dataKey="value" labelLine={false}
+                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+              >
+                {expense_data.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+              </Pie>
+              <Tooltip formatter={(v) => fmt(v)} {...CHART_TOOLTIP_STYLE} />
+            </PieChart>
+          </ResponsiveContainer>
+        </Card>
+        <Card>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+            <BigStat label="Annual Cash Flow" value={ra.annualCashFlow} color={ra.annualCashFlow >= 0 ? "#1C5355" : "#D94F4F"} sub="/year" />
+            <BigStat label="Return on Equity" value={ra.returnOnEquity} format={(v) => v.toFixed(1) + "%"} color="#4EB8BC" sub="Annual ROE" />
+          </div>
+        </Card>
+      </div>
+
+      <Card>
+        <h3 style={{ margin: "0 0 16px", fontSize: "16px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "1px" }}>
+          📉 Depreciation Tax Benefit
+        </h3>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px" }}>
+          <BigStat label="Building Value (80%)" value={ra.buildingValue} />
+          <BigStat label="Annual Depreciation" value={ra.annualDepreciation} color="#4EB8BC" />
+          <BigStat label="Annual Tax Savings" value={ra.annualTaxSavings} color="#1C5355" />
+        </div>
+      </Card>
+
+      <div
+        style={{
+          background: "#D94F4F10",
+          border: "2px solid #D94F4F",
+          boxShadow: "4px 4px 0 0 #D94F4F",
+          padding: "20px 24px",
+          display: "flex",
+          alignItems: "flex-start",
+          gap: "12px",
+        }}
+      >
+        <AlertTriangle size={24} color="#D94F4F" style={{ flexShrink: 0, marginTop: "2px" }} />
+        <div>
+          <div style={{ fontWeight: 800, fontSize: "14px", marginBottom: "8px", color: "#D94F4F" }}>
+            ⚠️ DEPRECIATION RECAPTURE WARNING
+          </div>
+          <div style={{ fontSize: "13px", lineHeight: 1.6, fontFamily: "'Courier New', monospace" }}>
+            <div>Years Held as Rental: <strong>{state.yearsHeldAsRental}</strong></div>
+            <div>Total Depreciation Taken: <strong>{fmt(ra.totalDepreciationTaken)}</strong></div>
+            <div>Recapture Tax (Section 1250 @ 25%): <strong style={{ color: "#D94F4F" }}>{fmt(ra.recaptureTax)}</strong></div>
+          </div>
+          <div style={{ marginTop: "8px", fontSize: "13px", lineHeight: 1.5 }}>
+            If you sell after renting, this amount is added back as ordinary income at 25%. This partially offsets the tax benefits received during the rental period.
+          </div>
+        </div>
+      </div>
+
+      <Card>
+        <h3 style={{ margin: "0 0 16px", fontSize: "16px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "1px" }}>
+          📈 {state.yearsHeldAsRental}-Year Equity Projection
+        </h3>
+        <ResponsiveContainer width="100%" height={300}>
+          <AreaChart data={equityProjection} margin={{ left: 10, right: 10 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#ddd" />
+            <XAxis dataKey="year" label={{ value: "Year", position: "insideBottom", offset: -5 }} style={{ fontFamily: "'Courier New', monospace", fontSize: "11px" }} />
+            <YAxis tickFormatter={fmtK} style={{ fontFamily: "'Courier New', monospace", fontSize: "11px" }} />
+            <Tooltip formatter={(v) => fmt(v)} {...CHART_TOOLTIP_STYLE} />
+            <Legend />
+            <Area type="monotone" dataKey="equity" name="Property Equity" stroke="#1C5355" fill="#1C535530" strokeWidth={2} />
+            <Area type="monotone" dataKey="cumulativeCashFlow" name="Accumulated Cash Flow" stroke="#4EB8BC" fill="#4EB8BC30" strokeWidth={2} />
+          </AreaChart>
+        </ResponsiveContainer>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px", marginTop: "16px", borderTop: "2px solid #000", paddingTop: "16px" }}>
+          <BigStat label={`Year ${state.yearsHeldAsRental} Equity`} value={equityProjection[equityProjection.length - 1]?.equity || 0} />
+          <BigStat label="Total Cash Flow" value={equityProjection[equityProjection.length - 1]?.cumulativeCashFlow || 0} color="#4EB8BC" />
+          <BigStat label="Combined Value" value={equityProjection[equityProjection.length - 1]?.combined || 0} color="#1C5355" />
+        </div>
+      </Card>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
+        <Card>
+          <h3 style={{ margin: "0 0 12px", fontSize: "14px", fontWeight: 800, color: "#1C5355" }}>✓ Advantages</h3>
+          {[
+            "Keep irreplaceable 2.5% rate",
+            `${fmt(ra.annualTaxSavings)}/yr depreciation tax savings`,
+            "Build equity while tenant pays mortgage",
+            "Potential appreciation upside",
+            "Passive income stream",
+          ].map((t) => (
+            <div key={t} style={{ fontSize: "13px", padding: "6px 0", display: "flex", gap: "8px" }}>
+              <span style={{ color: "#1C5355", fontWeight: 800 }}>+</span>
+              <span>{t}</span>
+            </div>
+          ))}
+        </Card>
+        <Card>
+          <h3 style={{ margin: "0 0 12px", fontSize: "14px", fontWeight: 800, color: "#D94F4F" }}>✗ Trade-offs</h3>
+          {[
+            `Cash flow may be negative (${fmt(ra.monthlyCashFlow)}/mo)`,
+            `${fmt(ra.recaptureTax)} depreciation recapture on sale`,
+            "Landlord headaches & liability",
+            "Lose Section 121 exclusion after 3yr away",
+            "Capital tied up in illiquid asset",
+          ].map((t) => (
+            <div key={t} style={{ fontSize: "13px", padding: "6px 0", display: "flex", gap: "8px" }}>
+              <span style={{ color: "#D94F4F", fontWeight: 800 }}>−</span>
+              <span>{t}</span>
+            </div>
+          ))}
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+// ─── TAB: BUYING POWER ───────────────────────────────────────
+function BuyingPowerTab({ state, setState, buyingPower, sellAnalysis }) {
+  const { optionA, optionB } = buyingPower;
+  const delta = optionA.maxPrice - optionB.maxPrice;
+
+  const renderClosingCosts = (cc, label) => (
+    <div style={{ marginBottom: "16px" }}>
+      <h4 style={{ fontSize: "13px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "1px", marginBottom: "8px" }}>{label} — Buyer Closing Costs</h4>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "'Courier New', monospace", fontSize: "12px" }}>
+        <tbody>
+          {[
+            [`Mortgage Recording Tax (${(cc.mortgageRecordingTaxRate * 100).toFixed(2)}%)`, cc.mortgageRecordingTax],
+            [`Mansion Tax (${(cc.mansionTaxRate * 100).toFixed(1)}%)`, cc.mansionTax],
+            ["Title Insurance (0.5%)", cc.titleInsurance],
+            ["Attorney Fee", cc.attorneyFee],
+            ["Inspection / Misc", cc.inspectionMisc],
+          ].map(([l, v]) => (
+            <tr key={l} style={{ borderBottom: "1px solid #eee" }}>
+              <td style={{ padding: "6px 8px" }}>{l}</td>
+              <td style={{ padding: "6px 8px", textAlign: "right", fontWeight: 700 }}>{fmt(v)}</td>
+            </tr>
+          ))}
+          <tr style={{ borderTop: "2px solid #000" }}>
+            <td style={{ padding: "8px", fontWeight: 800 }}>Total ({cc.effectivePct.toFixed(1)}%)</td>
+            <td style={{ padding: "8px", textAlign: "right", fontWeight: 900, color: "#D94F4F" }}>{fmt(cc.total)}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+
+  const barData = [
+    { name: "Sell & Buy", value: Math.max(0, optionA.maxPrice), fill: "#1C5355" },
+    { name: "Keep & Buy", value: Math.max(0, optionB.maxPrice), fill: "#4EB8BC" },
+  ];
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+      <Card>
+        <h3 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "1px" }}>
+          🎛️ New Mortgage Assumptions
+        </h3>
+        <p style={{ margin: "0 0 12px", fontSize: "12px", color: "#888" }}>These sliders affect both scenarios below.</p>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 24px" }}>
+          <Slider label="New Mortgage Rate" value={state.newMortgageRate} onChange={(v) => setState((s) => ({ ...s, newMortgageRate: v }))} min={5} max={8} step={0.125} suffix="%" />
+          <Slider label="Down Payment %" value={state.downPaymentPercent} onChange={(v) => setState((s) => ({ ...s, downPaymentPercent: v }))} min={10} max={30} step={1} suffix="%" />
+        </div>
+      </Card>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
+        <Card>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
+            <Badge color="#1C5355">Option A</Badge>
+            <span style={{ fontWeight: 800 }}>Sell & Buy</span>
+          </div>
+          <div style={{ fontSize: "13px", fontFamily: "'Courier New', monospace", display: "flex", flexDirection: "column", gap: "8px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span>Net Sale Proceeds</span>
+              <strong>{fmt(optionA.downPayment)}</strong>
+            </div>
+            {renderClosingCosts(optionA.closingCosts, "Option A")}
+            <div style={{ display: "flex", justifyContent: "space-between", borderTop: "2px solid #000", paddingTop: "8px" }}>
+              <span style={{ fontWeight: 800 }}>Net Available for Down Payment</span>
+              <strong style={{ color: "#1C5355" }}>{fmt(optionA.netForDP)}</strong>
+            </div>
+          </div>
+          <div style={{ marginTop: "16px", padding: "12px", background: "#f5f5f0", border: "1px solid #ddd" }}>
+            <h5 style={{ margin: "0 0 8px", fontSize: "12px", fontWeight: 800, textTransform: "uppercase" }}>Monthly PITI on {fmtK(state.newHomePurchasePrice)} Home</h5>
+            <div style={{ fontFamily: "'Courier New', monospace", fontSize: "12px", display: "flex", flexDirection: "column", gap: "4px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}><span>P&I ({pctClean(state.newMortgageRate)})</span><span>{fmt(optionA.monthlyPI)}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}><span>Est. Taxes</span><span>{fmt(optionA.monthlyTaxes)}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}><span>Est. Insurance</span><span>{fmt(optionA.monthlyInsurance)}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between", borderTop: "2px solid #000", paddingTop: "4px", fontWeight: 900 }}>
+                <span>TOTAL PITI</span><span style={{ color: "#1C5355" }}>{fmt(optionA.monthlyPITI)}</span>
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        <Card>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
+            <Badge color="#4EB8BC">Option B</Badge>
+            <span style={{ fontWeight: 800 }}>Keep & Buy</span>
+          </div>
+          <div style={{ fontSize: "13px", fontFamily: "'Courier New', monospace", display: "flex", flexDirection: "column", gap: "8px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span>Liquid Savings Available</span>
+              <strong>{fmt(optionB.downPayment)}</strong>
+            </div>
+            {renderClosingCosts(optionB.closingCosts, "Option B")}
+            <div style={{ display: "flex", justifyContent: "space-between", borderTop: "2px solid #000", paddingTop: "8px" }}>
+              <span style={{ fontWeight: 800 }}>Net Available for Down Payment</span>
+              <strong style={{ color: "#4EB8BC" }}>{fmt(optionB.netForDP)}</strong>
+            </div>
+          </div>
+          <div style={{ marginTop: "16px", padding: "12px", background: "#f5f5f0", border: "1px solid #ddd" }}>
+            <h5 style={{ margin: "0 0 8px", fontSize: "12px", fontWeight: 800, textTransform: "uppercase" }}>Monthly PITI on {fmtK(state.newHomePurchasePrice)} Home</h5>
+            <div style={{ fontFamily: "'Courier New', monospace", fontSize: "12px", display: "flex", flexDirection: "column", gap: "4px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}><span>P&I ({pctClean(state.newMortgageRate)})</span><span>{fmt(optionB.monthlyPI)}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}><span>Est. Taxes</span><span>{fmt(optionB.monthlyTaxes)}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}><span>Est. Insurance</span><span>{fmt(optionB.monthlyInsurance)}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between", borderTop: "2px solid #000", paddingTop: "4px", fontWeight: 900 }}>
+                <span>TOTAL PITI</span><span style={{ color: "#4EB8BC" }}>{fmt(optionB.monthlyPITI)}</span>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      <Card>
+        <h3 style={{ margin: "0 0 16px", fontSize: "16px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "1px" }}>
+          Max Buying Power Comparison
+        </h3>
+        <ResponsiveContainer width="100%" height={150}>
+          <BarChart data={barData} layout="vertical" margin={{ left: 10, right: 10 }}>
+            <XAxis type="number" tickFormatter={fmtK} style={{ fontFamily: "'Courier New', monospace", fontSize: "11px" }} />
+            <YAxis dataKey="name" type="category" width={100} style={{ fontFamily: "'Courier New', monospace", fontSize: "12px" }} />
+            <Tooltip formatter={(v) => fmt(v)} {...CHART_TOOLTIP_STYLE} />
+            <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+              {barData.map((e, i) => <Cell key={i} fill={e.fill} />)}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+        {delta > 0 && (
+          <div style={{ textAlign: "center", marginTop: "12px" }}>
+            <Badge color="#1C5355" bg="#1C535520">+ {fmtK(delta)} BUYING POWER BY SELLING</Badge>
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+// ─── TAB: VERDICT ─────────────────────────────────────────────
+function VerdictTab({ state, sellAnalysis, rentalAnalysis, buyingPower }) {
+  const [showKeep, setShowKeep] = useState(false);
+  const { optionA, optionB } = buyingPower;
+  const ra = rentalAnalysis;
+
+  const rows = [
+    { factor: "Immediate Cash", a: fmt(sellAnalysis.netCashToSeller), b: "$0", winner: "A" },
+    { factor: "Monthly Cash Flow", a: "$0", b: fmt(ra.monthlyCashFlow) + "/mo", winner: ra.monthlyCashFlow > 0 ? "B" : "A" },
+    { factor: "Buying Power", a: fmtK(optionA.maxPrice), b: fmtK(optionB.maxPrice), winner: optionA.maxPrice > optionB.maxPrice ? "A" : "B" },
+    { factor: "Mortgage Rate", a: "Lose 2.5%", b: "Keep 2.5%", winner: "B" },
+    { factor: "Capital Gains Tax", a: fmt(sellAnalysis.capitalGains.totalTax), b: "N/A", winner: sellAnalysis.capitalGains.isExempt ? "A" : "B" },
+    { factor: "Depreciation Benefit", a: "$0/yr", b: fmt(ra.annualTaxSavings) + "/yr", winner: "B" },
+    { factor: "Landlord Risk", a: "None", b: "High", winner: "A" },
+    { factor: "Tax Complexity", a: "Simple", b: "Complex", winner: "A" },
+  ];
+
+  const aWins = rows.filter((r) => r.winner === "A").length;
+  const bWins = rows.filter((r) => r.winner === "B").length;
+  const strongRent = ra.monthlyCashFlow > 1000;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+      <Card>
+        <h3 style={{ margin: "0 0 16px", fontSize: "16px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "1px" }}>
+          ⚖️ Side-by-Side Comparison
+        </h3>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+          <thead>
+            <tr style={{ borderBottom: "3px solid #000" }}>
+              <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px" }}>Factor</th>
+              <th style={{ padding: "10px 12px", textAlign: "center", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px", color: "#1C5355" }}>Option A: Sell</th>
+              <th style={{ padding: "10px 12px", textAlign: "center", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px", color: "#4EB8BC" }}>Option B: Keep</th>
+              <th style={{ padding: "10px 12px", textAlign: "center", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px" }}>Winner</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.factor} style={{ borderBottom: "1px solid #eee" }}>
+                <td style={{ padding: "10px 12px", fontWeight: 700 }}>{r.factor}</td>
+                <td style={{
+                  padding: "10px 12px", textAlign: "center", fontFamily: "'Courier New', monospace", fontWeight: 600,
+                  background: r.winner === "A" ? "#1C535510" : "transparent",
+                  color: r.winner === "A" ? "#1C5355" : "#888",
+                }}>{r.a}</td>
+                <td style={{
+                  padding: "10px 12px", textAlign: "center", fontFamily: "'Courier New', monospace", fontWeight: 600,
+                  background: r.winner === "B" ? "#4EB8BC10" : "transparent",
+                  color: r.winner === "B" ? "#1C5355" : "#888",
+                }}>{r.b}</td>
+                <td style={{ padding: "10px 12px", textAlign: "center" }}>
+                  <Badge color={r.winner === "A" ? "#1C5355" : "#4EB8BC"}>
+                    {r.winner === "A" ? "SELL" : "KEEP"}
+                  </Badge>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div style={{ display: "flex", gap: "16px", justifyContent: "center", marginTop: "16px", fontFamily: "'Courier New', monospace", fontSize: "14px", fontWeight: 700 }}>
+          <span style={{ color: "#1C5355" }}>Sell: {aWins}</span>
+          <span>|</span>
+          <span style={{ color: "#4EB8BC" }}>Keep: {bWins}</span>
+        </div>
+      </Card>
+
+      <div
+        style={{
+          background: "#1C5355",
+          border: "2px solid #000",
+          boxShadow: "6px 6px 0 0 #000",
+          padding: "28px 32px",
+          color: "#F7EEDB",
+        }}
+      >
+        <div style={{ fontSize: "12px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "2px", opacity: 0.7, marginBottom: "4px" }}>
+          RECOMMENDATION
+        </div>
+        <div style={{ fontSize: "24px", fontWeight: 900, marginBottom: "12px", fontFamily: "Georgia, serif" }}>
+          {strongRent
+            ? "SELL IF BUYING, CONSIDER KEEPING IF NOT MOVING"
+            : "SELL THE PROPERTY"
+          }
+        </div>
+        <div style={{ fontSize: "14px", lineHeight: 1.6, opacity: 0.9 }}>
+          {strongRent
+            ? `With ${fmt(ra.monthlyCashFlow)}/mo positive cash flow, keeping the property is viable if you're not purchasing a new home. However, if you need buying power for a new home, selling unlocks ${fmtK(sellAnalysis.netCashToSeller)} in tax-free proceeds.`
+            : `At ${fmt(ra.monthlyCashFlow)}/mo cash flow and the Section 121 exclusion window open, selling generates ${fmtK(sellAnalysis.netCashToSeller)} in tax-free proceeds. The 2.5% rate is valuable, but the negative/low cash flow and landlord complexity don't justify holding.`
+          }
+        </div>
+      </div>
+
+      <Card>
+        <button
+          onClick={() => setShowKeep(!showKeep)}
+          style={{
+            width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+            background: "none", border: "none", cursor: "pointer", padding: "0", fontWeight: 800,
+            fontSize: "14px", textTransform: "uppercase", letterSpacing: "1px",
+          }}
+        >
+          <span>When Keeping Might Make Sense</span>
+          {showKeep ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+        </button>
+        {showKeep && (
+          <div style={{ marginTop: "16px", display: "flex", flexDirection: "column", gap: "8px" }}>
+            {[
+              "You are NOT planning to buy another home",
+              "Rent increases significantly (>$6,500/mo)",
+              "You want to hold for 10+ years for appreciation",
+              "You move out temporarily and plan to return",
+            ].map((t) => (
+              <div key={t} style={{ fontSize: "13px", display: "flex", gap: "8px", alignItems: "center" }}>
+                <ArrowRight size={14} color="#4EB8BC" />
+                <span>{t}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      <Card>
+        <h3 style={{ margin: "0 0 16px", fontSize: "16px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "1px" }}>
+          📝 Next Steps
+        </h3>
+        {[
+          "Consult tax attorney to confirm Section 121 eligibility",
+          "Get broker CMA to confirm $540K value",
+          "If selling: list by spring for peak Brooklyn market",
+          "If keeping: get lease drafted, hire property manager",
+        ].map((t, i) => (
+          <div key={i} style={{ display: "flex", gap: "12px", alignItems: "flex-start", padding: "10px 0", borderBottom: i < 3 ? "1px solid #eee" : "none" }}>
+            <div style={{
+              width: "28px", height: "28px", borderRadius: "50%", background: "#1C5355", color: "#F7EEDB",
+              display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: "14px",
+              fontFamily: "'Courier New', monospace", flexShrink: 0,
+            }}>
+              {i + 1}
+            </div>
+            <span style={{ fontSize: "14px", paddingTop: "4px" }}>{t}</span>
+          </div>
+        ))}
+      </Card>
+    </div>
+  );
+}
+
+// ─── SETTINGS PANEL ───────────────────────────────────────────
+function SettingsPanel({ state, setState }) {
+  const [open, setOpen] = useState(false);
+  const summary = `${fmtK(state.estimatedSalePrice)} · ${state.appreciationRate}% · ${state.filingStatus === "mfj" ? "MFJ" : "Single"} · ${(state.incomeTaxBracket * 100).toFixed(0)}% bracket`;
+
+  return (
+    <div style={{ background: "#fff", border: "2px solid #000", boxShadow: "4px 4px 0 0 #000", marginBottom: "20px" }}>
+      <button
+        onClick={() => setOpen(!open)}
+        style={{
+          width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+          background: "none", border: "none", cursor: "pointer", padding: "16px 20px",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <Settings size={18} color="#1C5355" />
+          <span style={{ fontWeight: 800, fontSize: "14px", textTransform: "uppercase", letterSpacing: "1px" }}>Analysis Settings</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <span style={{ fontFamily: "'Courier New', monospace", fontSize: "12px", color: "#888" }}>{summary}</span>
+          {open ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+        </div>
+      </button>
+      {open && (
+        <div style={{ padding: "0 20px 20px", borderTop: "2px solid #eee" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0 24px", paddingTop: "16px" }}>
+            <NumberInput label="Estimated Sale Price" value={state.estimatedSalePrice} onChange={(v) => setState((s) => ({ ...s, estimatedSalePrice: v }))} step={5000} />
+            <NumberInput label="New Home Purchase Price" value={state.newHomePurchasePrice} onChange={(v) => setState((s) => ({ ...s, newHomePurchasePrice: v }))} step={10000} />
+            <NumberInput label="Available Liquid Savings — TOD Account (Option B)" value={state.liquidSavings} onChange={(v) => setState((s) => ({ ...s, liquidSavings: v }))} step={5000} />
+
+            <Slider label="Annual Appreciation Rate" value={state.appreciationRate} onChange={(v) => setState((s) => ({ ...s, appreciationRate: v }))} min={0} max={8} step={0.5} suffix="%" />
+            <SelectInput label="Filing Status" value={state.filingStatus} onChange={(v) => setState((s) => ({ ...s, filingStatus: v }))}
+              options={[{ value: "single", label: "Single" }, { value: "mfj", label: "Married Filing Jointly" }]} />
+            <NumberInput label="Years Lived as Primary Residence" value={state.yearsInResidence} onChange={(v) => setState((s) => ({ ...s, yearsInResidence: v }))} prefix="" step={1} />
+
+            <NumberInput label="Capital Improvements Made" value={state.capitalImprovements} onChange={(v) => setState((s) => ({ ...s, capitalImprovements: v }))} step={1000} />
+            <Slider label="Broker Commission Rate" value={state.brokerCommissionRate} onChange={(v) => setState((s) => ({ ...s, brokerCommissionRate: v }))} min={4} max={6} step={0.25} suffix="%" />
+            <SelectInput label="Federal CGT Bracket" value={state.federalCGTRate} onChange={(v) => setState((s) => ({ ...s, federalCGTRate: parseFloat(v) }))}
+              options={[
+                { value: 0, label: "0% (income under $94K)" },
+                { value: 0.15, label: "15% (income $94K–$583K)" },
+                { value: 0.20, label: "20% (income over $583K)" },
+              ]} />
+
+            <SelectInput label="Income Tax Bracket (depreciation)" value={state.incomeTaxBracket} onChange={(v) => setState((s) => ({ ...s, incomeTaxBracket: parseFloat(v) }))}
+              options={[
+                { value: 0.22, label: "22%" },
+                { value: 0.24, label: "24%" },
+                { value: 0.32, label: "32%" },
+                { value: 0.37, label: "37%" },
+              ]} />
+            <NumberInput label="Years Held as Rental (if kept)" value={state.yearsHeldAsRental} onChange={(v) => setState((s) => ({ ...s, yearsHeldAsRental: v }))} prefix="" step={1} />
+          </div>
+          <div style={{ marginTop: "12px", textAlign: "right" }}>
+            <button
+              onClick={() => setState(DEFAULT_STATE)}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: "6px",
+                background: "#F7EEDB", border: "2px solid #000", padding: "8px 16px",
+                fontWeight: 700, fontSize: "12px", cursor: "pointer", textTransform: "uppercase",
+                letterSpacing: "1px",
+              }}
+            >
+              <RotateCcw size={14} /> Reset to Defaults
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── LANDING PAGE ─────────────────────────────────────────────
+function LandingPage({ onNavigate }) {
+  return (
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 20px", textAlign: "center" }}>
+      <div style={{ maxWidth: "700px" }}>
+        <div style={{
+          display: "inline-block",
+          border: "2px solid #000",
+          boxShadow: "4px 4px 0 0 #000",
+          padding: "6px 16px",
+          fontSize: "12px",
+          fontWeight: 800,
+          textTransform: "uppercase",
+          letterSpacing: "2px",
+          marginBottom: "24px",
+          background: "#fff",
+        }}>
+          559 Warren Street · Brooklyn
+        </div>
+
+        <h1 style={{
+          fontSize: "clamp(36px, 6vw, 56px)",
+          fontWeight: 900,
+          lineHeight: 1.1,
+          margin: "0 0 16px",
+          fontFamily: "Georgia, serif",
+          color: "#1C5355",
+        }}>
+          Sell or Rent?
+        </h1>
+        <h2 style={{
+          fontSize: "clamp(18px, 3vw, 24px)",
+          fontWeight: 400,
+          lineHeight: 1.4,
+          margin: "0 0 32px",
+          color: "#666",
+        }}>
+          A comprehensive scenario analysis for your real estate decision.
+        </h2>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px", marginBottom: "40px" }}>
+          {[
+            ["$575K", "Est. Value"],
+            ["2.5%", "Mortgage Rate"],
+            ["$250K+", "Equity Built"],
+          ].map(([val, label]) => (
+            <div key={label} style={{ background: "#fff", border: "2px solid #000", boxShadow: "4px 4px 0 0 #000", padding: "20px" }}>
+              <div style={{ fontFamily: "'Courier New', monospace", fontSize: "28px", fontWeight: 900, color: "#1C5355" }}>{val}</div>
+              <div style={{ fontSize: "12px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "1px", color: "#888", marginTop: "4px" }}>{label}</div>
+            </div>
+          ))}
+        </div>
+
+        <button
+          onClick={() => onNavigate("analysis")}
+          style={{
+            background: "#1C5355",
+            color: "#F7EEDB",
+            border: "2px solid #000",
+            boxShadow: "4px 4px 0 0 #000",
+            padding: "16px 40px",
+            fontSize: "16px",
+            fontWeight: 900,
+            textTransform: "uppercase",
+            letterSpacing: "2px",
+            cursor: "pointer",
+            transition: "transform 0.1s, box-shadow 0.1s",
+          }}
+          onMouseDown={(e) => {
+            e.currentTarget.style.transform = "translate(2px, 2px)";
+            e.currentTarget.style.boxShadow = "2px 2px 0 0 #000";
+          }}
+          onMouseUp={(e) => {
+            e.currentTarget.style.transform = "";
+            e.currentTarget.style.boxShadow = "4px 4px 0 0 #000";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = "";
+            e.currentTarget.style.boxShadow = "4px 4px 0 0 #000";
+          }}
+        >
+          View Full Analysis →
+        </button>
+
+        <p style={{ marginTop: "24px", fontSize: "12px", color: "#aaa", fontFamily: "'Courier New', monospace" }}>
+          Built by Iconoclastic Capital Management
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ─── ANALYSIS PAGE ────────────────────────────────────────────
+function AnalysisPage({ state, setState, onNavigate }) {
+  const [activeTab, setActiveTab] = useState(0);
+  const calcs = useFinancialCalculations(state);
+
+  const tabs = [
+    { label: "Overview", icon: Home },
+    { label: "Option A: Sell", icon: DollarSign },
+    { label: "Option B: Rent", icon: Key },
+    { label: "Buying Power", icon: TrendingUp },
+    { label: "The Verdict", icon: Scale },
+  ];
+
+  return (
+    <div style={{ padding: "20px", maxWidth: "1100px", margin: "0 auto" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
+        <div>
+          <button
+            onClick={() => onNavigate("landing")}
+            style={{ background: "none", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "1px", padding: 0, marginBottom: "4px" }}
+          >
+            ← Back
+          </button>
+          <h1 style={{ margin: 0, fontSize: "24px", fontWeight: 900, fontFamily: "Georgia, serif", color: "#1C5355" }}>
+            {PROPERTY.address}
+          </h1>
+          <p style={{ margin: "2px 0 0", fontSize: "13px", color: "#888" }}>
+            {PROPERTY.building} · {PROPERTY.city}
+          </p>
+        </div>
+        <Badge color="#1C5355">SCENARIO ANALYSIS</Badge>
+      </div>
+
+      <SettingsPanel state={state} setState={setState} />
+
+      <div style={{ display: "flex", gap: "0", marginBottom: "20px", borderBottom: "2px solid #000", overflowX: "auto" }}>
+        {tabs.map((tab, i) => {
+          const Icon = tab.icon;
+          const active = activeTab === i;
+          return (
+            <button
+              key={tab.label}
+              onClick={() => setActiveTab(i)}
+              style={{
+                display: "flex", alignItems: "center", gap: "6px",
+                padding: "12px 18px",
+                background: active ? "#1C5355" : "transparent",
+                color: active ? "#F7EEDB" : "#666",
+                border: "none",
+                borderBottom: active ? "2px solid #1C5355" : "2px solid transparent",
+                fontWeight: 800,
+                fontSize: "12px",
+                textTransform: "uppercase",
+                letterSpacing: "0.5px",
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+                transition: "all 0.15s",
+              }}
+            >
+              <Icon size={14} />
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {activeTab === 0 && <OverviewTab state={state} />}
+      {activeTab === 1 && <SellTab state={state} sellAnalysis={calcs.sellAnalysis} />}
+      {activeTab === 2 && <RentTab state={state} setState={setState} rentalAnalysis={calcs.rentalAnalysis} equityProjection={calcs.equityProjection} />}
+      {activeTab === 3 && <BuyingPowerTab state={state} setState={setState} buyingPower={calcs.buyingPower} sellAnalysis={calcs.sellAnalysis} />}
+      {activeTab === 4 && <VerdictTab state={state} sellAnalysis={calcs.sellAnalysis} rentalAnalysis={calcs.rentalAnalysis} buyingPower={calcs.buyingPower} />}
+
+      <div style={{ textAlign: "center", marginTop: "40px", padding: "20px 0", borderTop: "2px solid #eee", fontSize: "12px", color: "#aaa", fontFamily: "'Courier New', monospace" }}>
+        ICONOCLASTIC CAPITAL MANAGEMENT · FEE-ONLY FIDUCIARY · BUILT WITH CLAUDE
+      </div>
+    </div>
+  );
+}
+
+// ─── MAIN APP ─────────────────────────────────────────────────
+export default function App() {
+  const [page, setPage] = useState("landing");
+  const [state, setState] = useState(DEFAULT_STATE);
+
+  return (
+    <div style={{ background: "#F7EEDB", minHeight: "100vh", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", color: "#1a1a1a" }}>
+      {page === "landing" && <LandingPage onNavigate={setPage} />}
+      {page === "analysis" && <AnalysisPage state={state} setState={setState} onNavigate={setPage} />}
+    </div>
+  );
+}
