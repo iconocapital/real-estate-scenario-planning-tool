@@ -4,18 +4,41 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>559 Warren St #5D — Real Estate Scenario Analysis</title>
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/recharts@2.12.7/dist/Recharts.js"></script>
-  <script src="https://unpkg.com/lucide-react@0.469.0/dist/umd/lucide-react.js"></script>
   <style>* { box-sizing: border-box; } body { background: #F7EEDB; margin: 0; }</style>
+  <!-- Load React first (required by Recharts) -->
+  <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+  <!-- Load d3 (required by Recharts) -->
+  <script src="https://unpkg.com/d3@7/dist/d3.min.js"></script>
+  <!-- Load Recharts after its dependencies -->
+  <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
+  <!-- Normalize Recharts global name -->
+  <script>
+    if (!window.Recharts && window.recharts) window.Recharts = window.recharts;
+    if (!window.Recharts) {
+      // recharts v2 UMD might not expose the namespace object
+      // Try to construct it from individual globals if present
+      window.Recharts = {
+        BarChart: window.BarChart, Bar: window.Bar,
+        XAxis: window.XAxis, YAxis: window.YAxis,
+        Tooltip: window.Tooltip, ResponsiveContainer: window.ResponsiveContainer,
+        PieChart: window.PieChart, Pie: window.Pie, Cell: window.Cell,
+        AreaChart: window.AreaChart, Area: window.Area,
+        CartesianGrid: window.CartesianGrid, Legend: window.Legend
+      };
+    }
+    console.log('Recharts loaded:', typeof window.Recharts, Object.keys(window.Recharts || {}).length, 'keys');
+  </script>
+  <!-- Load Lucide -->
+  <script src="https://unpkg.com/lucide-react@0.469.0/dist/umd/lucide-react.js"></script>
+  <!-- Load Babel for JSX transform -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
 <body>
   <div id="root"></div>
-  <script type="text/babel">
+  <script type="text/babel" data-presets="react">
     const { useState, useMemo, useEffect, useRef, useCallback } = React;
-    const { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, CartesianGrid, Legend } = Recharts;
+    const { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, CartesianGrid, Legend } = window.Recharts || {};
     const { Home, TrendingUp, DollarSign, Key, Scale, ChevronDown, ChevronUp, RotateCcw, Building2, Calculator, AlertTriangle, CheckCircle, ArrowRight, Minus, Settings, X } = LucideReact;
 
 
@@ -1417,7 +1440,7 @@ function App() {
 
 
     const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(React.createElement(App));
+    root.render(<App />);
   </script>
 </body>
 </html>
