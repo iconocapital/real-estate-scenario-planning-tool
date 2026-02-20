@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>559 Warren Street #5D — Sell or Rent?</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap');
+
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #F7EEDB;
+    --primary: #1C5355;
+    --primary-light: #1C535512;
+    --accent: #4EB8BC;
+    --accent-light: #4EB8BC12;
+    --card: #FFFFFF;
+    --red: #D94F4F;
+    --red-light: #D94F4F10;
+    --orange: #E8A838;
+    --purple: #7C6BBF;
+    --text: #1a1a1a;
+    --muted: #888;
+    --shadow: 4px 4px 0 0 #000;
+    --shadow-sm: 2px 2px 0 0 #000;
+    --mono: 'JetBrains Mono', 'Courier New', monospace;
+    --sans: 'DM Sans', -apple-system, sans-serif;
+    --serif: 'DM Serif Display', Georgia, serif;
+  }
+
+  html { scroll-behavior: auto; }
+  body { font-family: var(--sans); background: var(--bg); color: var(--text); line-height: 1.6; }
+
+  /* ── SLIDE SYSTEM ─────────────────────────────────── */
+  .slide {
+    display: none;
+    min-height: 100vh;
+    opacity: 0;
+    animation: fadeIn 0.4s ease forwards;
+  }
+  .slide.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+  .slide-inner {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 24px 100px;
+  }
+
+  /* ── NAVIGATION BAR ──────────────────────────────── */
+  .nav-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #fff;
+    border-top: 2px solid #000;
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 100;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
+  }
+  .nav-bar .progress {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .nav-bar .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 2px solid var(--primary);
+    background: transparent;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .nav-bar .dot.filled { background: var(--primary); }
+  .nav-bar .dot:hover { background: var(--accent); border-color: var(--accent); }
+  .nav-btn {
+    background: var(--primary);
+    color: var(--bg);
+    border: 2px solid #000;
+    box-shadow: var(--shadow-sm);
+    padding: 10px 24px;
+    font-size: 14px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    cursor: pointer;
+    font-family: var(--sans);
+    transition: transform 0.1s, box-shadow 0.1s;
+    white-space: nowrap;
+  }
+  .nav-btn:active { transform: translate(2px, 2px); box-shadow: none; }
+  .nav-btn:disabled { opacity: 0.3; cursor: default; }
+  .nav-btn.ghost { background: transparent; color: var(--primary); box-shadow: none; border: 2px solid var(--primary); }
+  .nav-label {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    font-family: var(--mono);
+  }
+
+  /* ── SLIDE HEADER ────────────────────────────────── */
+  .slide-header {
+    margin-bottom: 32px;
+  }
+  .slide-num {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  .slide-title {
+    font-family: var(--serif);
+    font-size: clamp(28px, 5vw, 42px);
+    font-weight: 400;
+    color: var(--primary);
+    line-height: 1.15;
+    margin-bottom: 12px;
+  }
+  .slide-subtitle {
+    font-size: 16px;
+    color: var(--muted);
+    max-width: 600px;
+    line-height: 1.6;
+  }
+
+  /* ── CARDS ───────────────────────────────────────── */
+  .card {
+    background: var(--card);
+    border: 2px solid #000;
+    box-shadow: var(--shadow);
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  .card-title {
+    font-size: 14px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* ── EXPLAINER BLOCKS ────────────────────────────── */
+  .explainer {
+    background: var(--primary-light);
+    border-left: 4px solid var(--primary);
+    padding: 16px 20px;
+    margin-bottom: 24px;
+    font-size: 14px;
+    line-height: 1.7;
+    color: #444;
+  }
+  .explainer strong { color: var(--primary); }
+  .explainer.warn {
+    background: var(--red-light);
+    border-left-color: var(--red);
+  }
+  .explainer.warn strong { color: var(--red); }
+  .explainer.tip {
+    background: #E8A83810;
+    border-left-color: var(--orange);
+  }
+  .explainer.tip strong { color: #b8860b; }
+
+  /* ── UTILITY ─────────────────────────────────────── */
+  .mono { font-family: var(--mono); }
+  .grid { display: grid; gap: 20px; }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  @media (max-width: 700px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+
+  .badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border: 2px solid currentColor;
+    font-weight: 800;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    font-family: var(--mono);
+  }
+  .badge-primary { color: var(--primary); background: var(--primary-light); }
+  .badge-accent { color: var(--accent); background: var(--accent-light); }
+  .badge-orange { color: var(--orange); background: #E8A83818; }
+
+  .stat-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 2px; }
+  .stat-value { font-family: var(--mono); font-weight: 800; font-size: 26px; }
+  .stat-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .stat-center { text-align: center; padding: 16px; }
+
+  table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 13px; }
+  table th { text-align: left; padding: 10px 12px; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; border-bottom: 2px solid #000; }
+  table td { padding: 9px 12px; border-bottom: 1px solid #eee; }
+  .total-row td { border-top: 3px solid #000; border-bottom: none; font-weight: 900; }
+
+  .alert-box { padding: 20px 24px; border: 2px solid; display: flex; align-items: flex-start; gap: 12px; margin-bottom: 20px; }
+  .alert-box.green { background: var(--primary-light); border-color: var(--primary); box-shadow: 4px 4px 0 0 var(--primary); }
+  .alert-box.red { background: var(--red-light); border-color: var(--red); box-shadow: 4px 4px 0 0 var(--red); }
+
+  .callout-big { background: var(--primary); border: 2px solid #000; box-shadow: 4px 4px 0 0 #000; padding: 28px 32px; color: var(--bg); margin-bottom: 20px; }
+
+  .pros-item, .cons-item { font-size: 14px; padding: 8px 0; display: flex; gap: 10px; align-items: flex-start; line-height: 1.5; }
+  .pros-item::before { content: '+'; font-weight: 800; color: var(--primary); font-family: var(--mono); }
+  .cons-item::before { content: '−'; font-weight: 800; color: var(--red); font-family: var(--mono); }
+
+  .slider-wrap { margin-bottom: 14px; }
+  .slider-head { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 13px; }
+  .slider-head .label { font-weight: 600; }
+  .slider-head .val { font-family: var(--mono); font-weight: 700; color: var(--primary); }
+  input[type="range"] { width: 100%; accent-color: var(--primary); }
+
+  .num-input-wrap { margin-bottom: 12px; }
+  .num-input-wrap label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  .num-input-box { display: flex; align-items: center; border: 2px solid #000; background: #fff; }
+  .num-input-prefix { padding: 8px 0 8px 12px; font-weight: 700; color: var(--primary); font-family: var(--mono); }
+  .num-input-box input { flex: 1; padding: 8px 12px; border: none; outline: none; background: transparent; font-family: var(--mono); font-weight: 700; font-size: 14px; }
+
+  .select-wrap { margin-bottom: 12px; }
+  .select-wrap label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  .select-wrap select { width: 100%; padding: 8px 12px; border: 2px solid #000; background: #fff; font-family: var(--mono); font-weight: 700; font-size: 13px; cursor: pointer; }
+
+  .step-row { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; border-bottom: 1px solid #eee; }
+  .step-row:last-child { border-bottom: none; }
+  .step-num { width: 30px; height: 30px; border-radius: 50%; background: var(--primary); color: var(--bg); display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 14px; font-family: var(--mono); flex-shrink: 0; }
+
+  .divider { border: none; border-top: 2px dashed #ccc; margin: 28px 0; }
+
+  .donut-wrap { display: flex; align-items: center; justify-content: center; gap: 20px; flex-wrap: wrap; }
+  .donut-legend { display: flex; flex-direction: column; gap: 6px; }
+  .donut-legend-item { display: flex; align-items: center; gap: 8px; font-size: 12px; font-family: var(--mono); }
+  .donut-legend-swatch { width: 14px; height: 14px; border: 1px solid #000; flex-shrink: 0; }
+
+  .settings-btn {
+    position: fixed; top: 16px; right: 16px; z-index: 101;
+    background: #fff; border: 2px solid #000; box-shadow: var(--shadow-sm);
+    width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 18px; transition: transform 0.2s;
+  }
+  .settings-btn:hover { transform: rotate(45deg); }
+  .settings-overlay {
+    display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.4); z-index: 200;
+  }
+  .settings-overlay.open { display: block; }
+  .settings-panel {
+    position: fixed; top: 0; right: -460px; width: 440px; max-width: 90vw;
+    height: 100vh; background: var(--bg); border-left: 2px solid #000;
+    overflow-y: auto; z-index: 201; padding: 24px;
+    transition: right 0.3s ease;
+  }
+  .settings-panel.open { right: 0; }
+  .settings-close {
+    background: none; border: none; font-size: 28px; cursor: pointer;
+    position: absolute; top: 16px; right: 16px; line-height: 1;
+  }
+
+  /* ── LANDING ─────────────────────────────────────── */
+  .landing-slide {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    text-align: center;
+    padding: 40px 24px;
+  }
+  .landing-slide .tag {
+    display: inline-block; border: 2px solid #000; box-shadow: var(--shadow);
+    padding: 6px 16px; font-size: 12px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 2px; margin-bottom: 28px; background: #fff;
+  }
+  .landing-slide h1 {
+    font-size: clamp(40px, 7vw, 64px); font-weight: 400; line-height: 1.08;
+    font-family: var(--serif); color: var(--primary); margin-bottom: 16px;
+  }
+  .landing-slide .sub {
+    font-size: clamp(16px, 2.5vw, 20px); color: #666; margin-bottom: 40px; max-width: 500px; line-height: 1.5;
+  }
+  .landing-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 44px; max-width: 520px; width: 100%; }
+  .landing-stat { background: #fff; border: 2px solid #000; box-shadow: var(--shadow); padding: 20px; }
+  .landing-stat .val { font-family: var(--mono); font-size: 28px; font-weight: 900; color: var(--primary); }
+  .landing-stat .lbl { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-top: 4px; }
+  @media (max-width: 500px) { .landing-stats { grid-template-columns: 1fr; max-width: 280px; } }
+
+  .cta-btn {
+    background: var(--primary); color: var(--bg); border: 2px solid #000;
+    box-shadow: 4px 4px 0 0 #000; padding: 16px 40px; font-size: 16px;
+    font-weight: 900; text-transform: uppercase; letter-spacing: 2px;
+    cursor: pointer; font-family: var(--sans); transition: transform 0.1s, box-shadow 0.1s;
+  }
+  .cta-btn:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 0 #000; }
+
+  .footer-line { font-size: 12px; color: #aaa; font-family: var(--mono); margin-top: 28px; }
+
+  /* ── PRINT ───────────────────────────────────────── */
+  @media print {
+    body { background: #fff; }
+    .card { box-shadow: none; break-inside: avoid; border: 1px solid #ccc; }
+    .nav-bar, .settings-btn, .settings-overlay, .settings-panel { display: none !important; }
+    .callout-big, .alert-box { box-shadow: none; break-inside: avoid; }
+    .slide { display: block !important; opacity: 1 !important; animation: none !important; page-break-after: always; }
+    .slide-inner { padding: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════ SETTINGS GEAR ═══════════ -->
+<button class="settings-btn" onclick="openSettings()" title="Analysis Settings" id="gear-btn">⚙</button>
+<div class="settings-overlay" id="settings-overlay" onclick="closeSettings()"></div>
+<div class="settings-panel" id="settings-panel">
+  <button class="settings-close" onclick="closeSettings()">×</button>
+  <h3 style="font-family:var(--serif);font-size:22px;color:var(--primary);margin-bottom:4px;">Analysis Settings</h3>
+  <p style="font-size:13px;color:var(--muted);margin-bottom:20px;">Adjust assumptions. All slides update live.</p>
+
+  <div class="num-input-wrap"><label>Estimated Sale Price</label><div class="num-input-box"><span class="num-input-prefix">$</span><input type="number" id="in-salePrice" step="5000" oninput="onInput()"></div></div>
+  <div class="num-input-wrap"><label>New Home Purchase Price</label><div class="num-input-box"><span class="num-input-prefix">$</span><input type="number" id="in-newHomePrice" step="10000" oninput="onInput()"></div></div>
+  <div class="num-input-wrap"><label>TOD Account (Option B Savings)</label><div class="num-input-box"><span class="num-input-prefix">$</span><input type="number" id="in-liquidSavings" step="5000" oninput="onInput()"></div></div>
+  <hr style="border:none;border-top:1px solid #ccc;margin:16px 0;">
+  <div class="slider-wrap"><div class="slider-head"><span class="label">Appreciation Rate</span><span class="val" id="lbl-appr"></span></div><input type="range" id="in-appr" min="0" max="8" step="0.5" oninput="onInput()"></div>
+  <div class="slider-wrap"><div class="slider-head"><span class="label">Broker Commission</span><span class="val" id="lbl-comm"></span></div><input type="range" id="in-comm" min="4" max="6" step="0.25" oninput="onInput()"></div>
+  <div class="select-wrap"><label>Filing Status</label><select id="in-filing" onchange="onInput()"><option value="single">Single</option><option value="mfj">Married Filing Jointly</option></select></div>
+  <div class="num-input-wrap"><label>Years as Primary Residence</label><div class="num-input-box"><input type="number" id="in-yrsRes" step="1" oninput="onInput()"></div></div>
+  <div class="num-input-wrap"><label>Capital Improvements</label><div class="num-input-box"><span class="num-input-prefix">$</span><input type="number" id="in-capImp" step="1000" oninput="onInput()"></div></div>
+  <div class="select-wrap"><label>Federal CGT Bracket</label><select id="in-fedCGT" onchange="onInput()"><option value="0">0% (under $94K)</option><option value="0.15">15% ($94K–$583K)</option><option value="0.20">20% (over $583K)</option></select></div>
+  <div class="select-wrap"><label>Income Tax Bracket</label><select id="in-incBrk" onchange="onInput()"><option value="0.22">22%</option><option value="0.24">24%</option><option value="0.32">32%</option><option value="0.37">37%</option></select></div>
+  <div class="num-input-wrap"><label>Years as Rental (if kept)</label><div class="num-input-box"><input type="number" id="in-yrsRent" step="1" oninput="onInput()"></div></div>
+  <hr style="border:none;border-top:1px solid #ccc;margin:16px 0;">
+  <button onclick="resetAll()" style="background:var(--bg);border:2px solid #000;padding:8px 16px;font-weight:700;font-size:12px;cursor:pointer;text-transform:uppercase;letter-spacing:1px;font-family:var(--sans);width:100%;">↺ Reset to Defaults</button>
+</div>
+
+<!-- ═══════════ SLIDES ═══════════ -->
+<div id="slides"></div>
+
+<!-- ═══════════ NAV BAR ═══════════ -->
+<div class="nav-bar" id="nav-bar"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════════════════════
+const P = {
+  address:"559 Warren Street #5D", building:"The Warren Building", city:"Brooklyn, NY",
+  beds:2, baths:1, sqft:1100, purchaseDate:"January 2019", purchasePrice:565000,
+  balance:289350, rate:2.5, pi:2237, hoa:1807, tax:605, ins:0, origLoan:452000
+};
+const COMPS = [{u:"559 Warren #4E",p:515000,d:"Aug 2024"},{u:"559 Warren #6B",p:550000,d:"Jun 2024"},{u:"561 Warren #3A",p:560000,d:"Aug 2024"}];
+const COL = ["#1C5355","#4EB8BC","#E8A838","#D94F4F","#7C6BBF","#5B9E5B"];
+const DEF = {
+  salePrice:575000, newHomePrice:900000, liquid:300000, appr:3, filing:"mfj",
+  yrsRes:6, capImp:0, commRate:5, fedCGT:0.15, incBrk:0.24, yrsRent:5,
+  rent:5500, vacancy:5, maint:10, mgmt:0, newRate:6.5, dpPct:20
+};
+let S = {...DEF};
+let slide = 0;
+const TOTAL_SLIDES = 7;
+
+// ═══════════════════════════════════════════════════════════════
+// FORMATTING
+// ═══════════════════════════════════════════════════════════════
+const fmt = n => { if(n==null||isNaN(n))return"$0"; const neg=n<0,a=Math.abs(n); return(neg?"-":"")+"$"+Math.round(a).toLocaleString("en-US"); };
+const fmtK = n => { if(Math.abs(n)>=1e6)return"$"+(n/1e6).toFixed(1)+"M"; if(Math.abs(n)>=1000)return"$"+Math.round(n/1000)+"K"; return fmt(n); };
+const pc = (n,d=1) => n.toFixed(d)+"%";
+
+// ═══════════════════════════════════════════════════════════════
+// CALCULATIONS
+// ═══════════════════════════════════════════════════════════════
+function calcSell(){
+  const s=S.salePrice, nycR=s>=500000?0.01425:0.011, nyc=s*nycR, nys=s*0.004,
+    brk=s*(S.commRate/100), att=3000, msat=500, misc=s*0.001,
+    cc=nyc+nys+brk+att+msat+misc, net=s-cc-P.balance,
+    ab=P.purchasePrice+S.capImp, gg=s-ab-cc,
+    excl=S.filing==="mfj"?500000:250000, q=S.yrsRes>=2,
+    txbl=q?Math.max(0,gg-excl):Math.max(0,gg),
+    ft=txbl*S.fedCGT, st=txbl*0.0685, ct=txbl*0.03876, tt=ft+st+ct;
+  return{cc:{nyc,nycR,nys,brk,brkP:S.commRate,att,msat,misc,tot:cc},
+    cg:{ab,gg,sc:cc,excl,txbl,fR:S.fedCGT,ft,st,ct,tt,ex:txbl===0,q},net,netAfterTax:net-tt};
+}
+function calcRental(){
+  const r=S.rent, egi=r*(1-S.vacancy/100), mt=r*(S.maint/100), mg=r*(S.mgmt/100),
+    exp=P.pi+P.hoa+P.tax+P.ins+mt+mg, cf=egi-exp, acf=cf*12,
+    eq=S.salePrice-P.balance, roe=eq>0?(acf/eq)*100:0,
+    bv=S.salePrice*0.8, dep=bv/27.5, sav=dep*S.incBrk,
+    td=dep*S.yrsRent, rc=td*0.25;
+  return{egi,mt,mg,exp,cf,acf,eq,roe,bv,dep,sav,td,rc};
+}
+function calcEquity(acf){
+  const yrs=[]; let pv=S.salePrice,bal=P.balance; const mr=P.rate/100/12; let cum=0;
+  for(let y=0;y<=S.yrsRent;y++){
+    yrs.push({yr:y,pv:Math.round(pv),bal:Math.round(bal),eq:Math.round(pv-bal),cum:Math.round(cum),comb:Math.round(pv-bal+cum)});
+    for(let m=0;m<12;m++){const i=bal*mr;bal=Math.max(0,bal-(P.pi-i));}
+    pv*=(1+S.appr/100); cum+=acf;
+  } return yrs;
+}
+function mortPmt(prin,rate,yrs=30){const r=rate/100/12,n=yrs*12;if(r===0)return prin/n;return prin*(r*Math.pow(1+r,n))/(Math.pow(1+r,n)-1);}
+function buyerCC(price,loan){
+  const mr=loan>=500000?0.0205:0.018, mrt=loan*mr;
+  let mn=0;if(price>=5e6)mn=0.02;else if(price>=3e6)mn=0.015;else if(price>=2e6)mn=0.0125;else if(price>=1e6)mn=0.01;
+  const man=price*mn,ti=price*0.005,at=3000,ins=2000,tot=mrt+man+ti+at+ins;
+  return{mrt,mr,man,mn,ti,at,ins,tot,eff:(tot/price)*100};
+}
+function calcBuy(sellNet){
+  const np=S.newHomePrice,dp=S.dpPct/100;
+  const go=(d)=>{const ln=np-d,cc=buyerCC(np,Math.max(0,ln)),nd=d-cc.tot,al=np-Math.max(0,nd),
+    pi=mortPmt(Math.max(0,al),S.newRate),tx=(np*0.012)/12,ins=200,mx=nd>0?nd/dp:0;
+    return{d,cc,nd,al,pi,tx,ins,piti:pi+tx+ins,mx};};
+  return{a:go(sellNet),b:go(S.liquid)};
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SVG CHARTS
+// ═══════════════════════════════════════════════════════════════
+function barChart(data,h=34){
+  const mx=Math.max(...data.map(d=>Math.abs(d.v)),1);
+  return data.map(d=>{const w=(Math.abs(d.v)/mx)*100;
+    return`<div style="margin-bottom:10px;"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;"><span style="font-weight:700;">${d.l}</span><span class="mono" style="font-weight:700;">${fmt(d.v)}</span></div><div style="height:${h}px;background:#eee;border:1px solid #ddd;border-radius:2px;overflow:hidden;"><div style="width:${w}%;height:100%;background:${d.c};border-radius:2px;transition:width 0.6s ease;"></div></div></div>`;
+  }).join('');
+}
+function donut(data,sz=160){
+  const tot=data.reduce((s,d)=>s+d.v,0),r=sz/2-8,ir=r*0.55,cx=sz/2,cy=sz/2;let a=-Math.PI/2,paths='';
+  data.forEach(d=>{const p=d.v/tot,a1=a,a2=a+p*2*Math.PI,lg=p>0.5?1:0;
+    const x1=cx+r*Math.cos(a1),y1=cy+r*Math.sin(a1),x2=cx+r*Math.cos(a2),y2=cy+r*Math.sin(a2),
+      xi1=cx+ir*Math.cos(a2),yi1=cy+ir*Math.sin(a2),xi2=cx+ir*Math.cos(a1),yi2=cy+ir*Math.sin(a1);
+    paths+=`<path d="M${x1},${y1} A${r},${r} 0 ${lg} 1 ${x2},${y2} L${xi1},${yi1} A${ir},${ir} 0 ${lg} 0 ${xi2},${yi2} Z" fill="${d.c}" stroke="#fff" stroke-width="2"/>`;a=a2;});
+  const leg=data.map(d=>`<div class="donut-legend-item"><div class="donut-legend-swatch" style="background:${d.c}"></div><span>${d.l}: ${fmt(d.v)}</span></div>`).join('');
+  return`<div class="donut-wrap"><svg width="${sz}" height="${sz}" viewBox="0 0 ${sz} ${sz}">${paths}<text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central" font-family="var(--mono)" font-size="12" font-weight="800" fill="#1C5355">${fmt(tot)}</text></svg><div class="donut-legend">${leg}</div></div>`;
+}
+function areaChart(data,W=580,H=260){
+  const mxY=Math.max(...data.map(d=>Math.max(d.eq,d.cum)),1),mnY=Math.min(0,...data.map(d=>Math.min(d.eq,d.cum))),rng=mxY-mnY||1;
+  const pd={t:20,r:20,b:55,l:65},cw=W-pd.l-pd.r,ch=H-pd.t-pd.b;
+  const x=i=>pd.l+(i/Math.max(data.length-1,1))*cw, y=v=>pd.t+(1-(v-mnY)/rng)*ch;
+  let g='';for(let i=0;i<=5;i++){const v=mnY+(rng/5)*i,yy=y(v);
+    g+=`<line x1="${pd.l}" y1="${yy}" x2="${W-pd.r}" y2="${yy}" stroke="#ddd" stroke-dasharray="3,3"/><text x="${pd.l-8}" y="${yy+4}" text-anchor="end" font-family="var(--mono)" font-size="10" fill="#888">${fmtK(v)}</text>`;}
+  data.forEach((d,i)=>{g+=`<text x="${x(i)}" y="${H-32}" text-anchor="middle" font-family="var(--mono)" font-size="10" fill="#888">Yr ${d.yr}</text>`;});
+  const mp=(k,c)=>{let pts=data.map((d,i)=>`${x(i)},${y(d[k])}`).join(' ');
+    return`<path d="M${x(0)},${y(0)} L${pts} L${x(data.length-1)},${y(0)} Z" fill="${c}20"/><polyline points="${pts}" fill="none" stroke="${c}" stroke-width="2.5"/>`+data.map((d,i)=>`<circle cx="${x(i)}" cy="${y(d[k])}" r="4" fill="${c}" stroke="#fff" stroke-width="2"/>`).join('');};
+  return`<svg width="100%" height="${H}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">${g}${mp('cum','#4EB8BC')}${mp('eq','#1C5355')}<rect x="${pd.l}" y="${H-16}" width="12" height="12" fill="#1C5355" rx="2"/><text x="${pd.l+16}" y="${H-6}" font-family="var(--mono)" font-size="10" fill="#666">Equity</text><rect x="${pd.l+100}" y="${H-16}" width="12" height="12" fill="#4EB8BC" rx="2"/><text x="${pd.l+116}" y="${H-6}" font-family="var(--mono)" font-size="10" fill="#666">Cash Flow</text></svg>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SETTINGS
+// ═══════════════════════════════════════════════════════════════
+function openSettings(){document.getElementById('settings-overlay').classList.add('open');document.getElementById('settings-panel').classList.add('open');}
+function closeSettings(){document.getElementById('settings-overlay').classList.remove('open');document.getElementById('settings-panel').classList.remove('open');}
+function syncInputs(){
+  const s=id=>document.getElementById(id);
+  s('in-salePrice').value=S.salePrice;s('in-newHomePrice').value=S.newHomePrice;s('in-liquidSavings').value=S.liquid;
+  s('in-appr').value=S.appr;s('in-comm').value=S.commRate;s('in-filing').value=S.filing;
+  s('in-yrsRes').value=S.yrsRes;s('in-capImp').value=S.capImp;s('in-fedCGT').value=S.fedCGT;
+  s('in-incBrk').value=S.incBrk;s('in-yrsRent').value=S.yrsRent;
+  s('lbl-appr').textContent=S.appr+'%';s('lbl-comm').textContent=S.commRate+'%';
+}
+function readInputs(){
+  const g=id=>parseFloat(document.getElementById(id).value);
+  S.salePrice=g('in-salePrice')||0;S.newHomePrice=g('in-newHomePrice')||0;S.liquid=g('in-liquidSavings')||0;
+  S.appr=g('in-appr')||0;S.filing=document.getElementById('in-filing').value;S.yrsRes=g('in-yrsRes')||0;
+  S.capImp=g('in-capImp')||0;S.commRate=g('in-comm')||5;S.fedCGT=g('in-fedCGT')||0;
+  S.incBrk=g('in-incBrk')||0.24;S.yrsRent=g('in-yrsRent')||5;
+  document.getElementById('lbl-appr').textContent=S.appr+'%';
+  document.getElementById('lbl-comm').textContent=S.commRate+'%';
+}
+function onInput(){readInputs();renderCurrent();}
+function resetAll(){S={...DEF};syncInputs();renderCurrent();}
+
+// Inline sliders (rental/buying tabs) read from dynamic DOM
+function readDynamic(){
+  const g=(id,fb)=>{const el=document.getElementById(id);return el?parseFloat(el.value):fb;};
+  S.rent=g('sl-rent',S.rent);S.vacancy=g('sl-vac',S.vacancy);S.maint=g('sl-mt',S.maint);S.mgmt=g('sl-mg',S.mgmt);
+  S.newRate=g('sl-nr',S.newRate);S.dpPct=g('sl-dp',S.dpPct);
+}
+function onDynamic(){readDynamic();renderCurrent();}
+
+// ═══════════════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════════════
+const SLIDE_NAMES = ["Home","Overview","Option A: Sell","Option B: Rent","Buying Power","The Verdict","Next Steps"];
+
+function goTo(n){
+  slide=Math.max(0,Math.min(n,TOTAL_SLIDES-1));
+  renderCurrent();
+  window.scrollTo({top:0,behavior:'auto'});
+  document.getElementById('gear-btn').style.display=slide===0?'none':'flex';
+}
+function renderNav(){
+  const nb=document.getElementById('nav-bar');
+  if(slide===0){nb.style.display='none';return;}
+  nb.style.display='flex';
+  const prev=slide>0?`<button class="nav-btn ghost" onclick="goTo(${slide-1})">← ${slide===1?'Home':SLIDE_NAMES[slide-1]}</button>`:`<div></div>`;
+  const next=slide<TOTAL_SLIDES-1?`<button class="nav-btn" onclick="goTo(${slide+1})">${SLIDE_NAMES[slide+1]} →</button>`:`<div></div>`;
+  const dots=SLIDE_NAMES.map((_,i)=>`<div class="dot ${i<=slide?'filled':''}" onclick="goTo(${i})" title="${SLIDE_NAMES[i]}"></div>`).join('');
+  nb.innerHTML=`${prev}<div style="display:flex;flex-direction:column;align-items:center;gap:4px;"><div class="nav-label">${slide} of ${TOTAL_SLIDES-1}</div><div class="progress">${dots}</div></div>${next}`;
+}
+
+function renderCurrent(){
+  const sell=calcSell(),rent=calcRental(),eq=calcEquity(rent.acf),buy=calcBuy(sell.net);
+  const slides=document.getElementById('slides');
+  slides.innerHTML=[renderLanding,s=>renderOverview(s,sell),s=>renderSellSlide(s,sell),s=>renderRentSlide(s,rent,eq),s=>renderBuySlide(s,buy,sell),s=>renderVerdict(s,sell,rent,buy),renderNextSteps].map((fn,i)=>{
+    const html=typeof fn==='function'?fn(i):'';
+    return`<div class="slide ${i===slide?'active':''}" id="slide-${i}">${html}</div>`;
+  }).join('');
+  renderNav();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SLIDE 0: LANDING
+// ═══════════════════════════════════════════════════════════════
+function renderLanding(){
+  return`<div class="landing-slide">
+    <div style="max-width:680px;">
+      <div class="tag">559 Warren Street · Brooklyn</div>
+      <h1>Sell or Rent?</h1>
+      <p class="sub">A guided walkthrough of the numbers, trade-offs, and recommendation for your property.</p>
+      <div class="landing-stats">
+        <div class="landing-stat"><div class="val">$575K</div><div class="lbl">Est. Value</div></div>
+        <div class="landing-stat"><div class="val">2.5%</div><div class="lbl">Locked Rate</div></div>
+        <div class="landing-stat"><div class="val">${fmtK(S.salePrice - P.balance)}</div><div class="lbl">Equity</div></div>
+      </div>
+      <button class="cta-btn" onclick="goTo(1)">Begin Analysis →</button>
+      <div class="footer-line">Prepared by Iconoclastic Capital Management</div>
+    </div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SLIDE 1: OVERVIEW
+// ═══════════════════════════════════════════════════════════════
+function renderOverview(idx,sell){
+  const eq=S.salePrice-P.balance, mo=P.pi+P.hoa+P.tax+P.ins,
+    avg=Math.round(COMPS.reduce((s,c)=>s+c.p,0)/COMPS.length/P.sqft),
+    eLabel=S.filing==='mfj'?'$500K MFJ':'$250K Single';
+  return`<div class="slide-inner">
+    <div class="slide-header">
+      <div class="slide-num">Slide 1 of ${TOTAL_SLIDES-1}</div>
+      <div class="slide-title">Property Overview</div>
+      <div class="slide-subtitle">Where things stand today — your property, mortgage, and market position.</div>
+    </div>
+
+    <div class="explainer">
+      <strong>Why this matters:</strong> Before we compare selling vs. renting, you need a clear picture of what you own, what it's worth, and what it costs to hold. These are the baseline numbers everything else flows from.
+    </div>
+
+    <div class="grid grid-2">
+      <div class="card">
+        <div class="card-title">🏠 Property Details</div>
+        <div class="grid grid-2" style="gap:12px;">
+          ${[['Bedrooms',P.beds],['Bathrooms',P.baths],['Sq Ft',P.sqft.toLocaleString()],['Building',P.building]].map(([l,v])=>
+            `<div><div class="stat-label">${l}</div><div style="font-size:18px;font-weight:800;font-family:var(--mono);">${v}</div></div>`).join('')}
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">🏦 Mortgage Status <span class="badge badge-orange" style="margin-left:auto;">🔥 2.5% Rate</span></div>
+        ${[['Original Loan',fmt(P.origLoan)],['Current Balance',fmt(P.balance)],['Monthly P&I',fmt(P.pi)],['Monthly HOA',fmt(P.hoa)],['Monthly Taxes',fmt(P.tax)]].map(([l,v])=>
+          `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #eee;"><span class="stat-label" style="margin:0;">${l}</span><span class="mono" style="font-weight:700;">${v}</span></div>`).join('')}
+        <div style="display:flex;justify-content:space-between;padding:10px 0 0;border-top:2px solid #000;margin-top:4px;">
+          <span style="font-weight:800;">TOTAL MONTHLY</span>
+          <span class="mono" style="font-weight:900;font-size:20px;color:var(--primary);">${fmt(mo)}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="explainer tip">
+      <strong>Your 2.5% rate is a unicorn.</strong> The average 30-year mortgage rate today is around 6.5–7%. This rate alone saves you roughly $1,500–2,000/month vs. refinancing at today's rates on the same balance. It's the single biggest argument for keeping the property.
+    </div>
+
+    <div class="card">
+      <div class="card-title">📊 Market Valuation</div>
+      <div class="grid grid-3" style="margin-bottom:20px;">
+        <div class="stat-center"><div class="stat-label">Purchase Price</div><div class="stat-value" style="color:#666;">${fmt(P.purchasePrice)}</div><div class="stat-sub">${P.purchaseDate}</div></div>
+        <div class="stat-center"><div class="stat-label">Estimated Value</div><div class="stat-value" style="color:var(--primary);">${fmt(S.salePrice)}</div><div class="stat-sub">Current Market</div></div>
+        <div class="stat-center"><div class="stat-label">Current Equity</div><div class="stat-value" style="color:var(--accent);">${fmt(eq)}</div><div class="stat-sub">Value − Balance</div></div>
+      </div>
+      <h4 style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Comparable Sales</h4>
+      <table><thead><tr><th>Unit</th><th style="text-align:right;">Price</th><th style="text-align:right;">Date</th></tr></thead>
+      <tbody>${COMPS.map(c=>`<tr><td style="font-weight:600;">${c.u}</td><td style="text-align:right;font-weight:700;">${fmt(c.p)}</td><td style="text-align:right;color:var(--muted);">${c.d}</td></tr>`).join('')}</tbody></table>
+      <div style="text-align:right;margin-top:8px;font-size:12px;color:var(--muted);">Avg: <strong style="color:var(--primary);">~$${avg}/sqft</strong></div>
+    </div>
+
+    <div class="alert-box green">
+      <span style="font-size:24px;flex-shrink:0;">✓</span>
+      <div>
+        <div style="font-weight:800;font-size:14px;color:var(--primary);margin-bottom:4px;">SECTION 121 EXCLUSION APPLIES</div>
+        <div style="font-size:14px;line-height:1.6;">You've lived here ${S.yrsRes}+ years, qualifying for the full exclusion (${eLabel}). At today's estimated value, <strong>$0 in capital gains tax would be owed on a sale.</strong></div>
+      </div>
+    </div>
+    <div class="explainer">
+      <strong>What is Section 121?</strong> IRS Section 121 lets you exclude up to $250K (single) or $500K (married filing jointly) of capital gains from the sale of your primary residence — tax free — as long as you've lived there for at least 2 of the last 5 years. This is one of the most powerful tax benefits available to homeowners, and it has a time limit. If you move out and rent it, the clock starts ticking.
+    </div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SLIDE 2: SELL
+// ═══════════════════════════════════════════════════════════════
+function renderSellSlide(idx,sell){
+  const{cc,cg,net,netAfterTax}=sell;
+  return`<div class="slide-inner">
+    <div class="slide-header">
+      <div class="slide-num">Slide 2 of ${TOTAL_SLIDES-1}</div>
+      <div class="slide-title">Option A: Sell the Property</div>
+      <div class="slide-subtitle">What you walk away with after closing costs, mortgage payoff, and taxes.</div>
+    </div>
+
+    <div class="explainer">
+      <strong>How selling works in NYC:</strong> Selling a property in New York City involves several layers of transfer taxes and fees beyond the typical broker commission. NYC charges its own transfer tax (1.425% for sales ≥$500K), New York State adds another 0.4%, and there are attorney, recording, and miscellaneous fees. These add up quickly — typically 7–8% of the sale price.
+    </div>
+
+    <div class="card">
+      <div class="card-title">📋 Seller Closing Costs</div>
+      <table><tbody>
+        ${[['NYC Transfer Tax',`${(cc.nycR*100).toFixed(3)}%`,cc.nyc],['NYS Transfer Tax','0.400%',cc.nys],['Broker Commission',`${cc.brkP.toFixed(1)}%`,cc.brk],['Attorney Fee','Flat',cc.att],['Mortgage Satisfaction','Flat',cc.msat],['Miscellaneous','0.100%',cc.misc]].map(([l,r,v])=>`<tr><td style="font-weight:600;">${l}</td><td style="text-align:center;color:var(--muted);">${r}</td><td style="text-align:right;font-weight:700;">${fmt(v)}</td></tr>`).join('')}
+        <tr class="total-row"><td colspan="2" style="font-size:14px;">TOTAL CLOSING COSTS</td><td style="text-align:right;font-size:16px;color:var(--red);">${fmt(cc.tot)}</td></tr>
+      </tbody></table>
+    </div>
+
+    <div class="card">
+      <div class="card-title">💰 Net-to-Seller Waterfall</div>
+      ${[['Gross Sale Price',S.salePrice,false],['NYC Transfer Tax',-cc.nyc,true],['NYS Transfer Tax',-cc.nys,true],['Broker Commission',-cc.brk,true],['Attorney / Misc / Fees',-(cc.att+cc.msat+cc.misc),true],['Mortgage Payoff',-P.balance,true]].map(([l,v,neg])=>
+        `<div style="display:flex;justify-content:space-between;padding:8px 12px;border-bottom:1px solid #eee;font-family:var(--mono);font-size:13px;"><span style="font-weight:600;">${neg?'−  ':''}${l}</span><span style="font-weight:700;color:${neg?'var(--red)':'#000'};">${fmt(Math.abs(v))}</span></div>`).join('')}
+      <div style="display:flex;justify-content:space-between;padding:14px 12px;border-top:3px solid #000;background:var(--primary-light);margin-top:4px;">
+        <span style="font-weight:900;font-size:15px;color:var(--primary);">=  NET CASH TO SELLER</span>
+        <span class="mono" style="font-weight:900;font-size:22px;color:var(--primary);">${fmt(net)}</span>
+      </div>
+      ${cg.tt>0?`<div style="display:flex;justify-content:space-between;padding:10px 12px;border-bottom:1px solid #eee;font-family:var(--mono);font-size:13px;"><span style="font-weight:600;color:var(--red);">−  Capital Gains Tax</span><span style="font-weight:700;color:var(--red);">${fmt(cg.tt)}</span></div>
+      <div style="display:flex;justify-content:space-between;padding:14px 12px;border-top:2px solid #000;background:var(--primary-light);"><span style="font-weight:900;font-size:15px;color:var(--primary);">=  NET AFTER TAX</span><span class="mono" style="font-weight:900;font-size:22px;color:var(--primary);">${fmt(netAfterTax)}</span></div>`:''}
+    </div>
+
+    ${cg.ex?`<div class="alert-box green" style="margin-bottom:24px;">
+      <span style="font-size:24px;flex-shrink:0;">✓</span>
+      <div><div style="font-weight:900;font-size:20px;color:var(--primary);">$0 CAPITAL GAINS TAX</div>
+      <div style="font-size:13px;color:var(--primary);margin-top:4px;">Full Section 121 exclusion (${S.filing==='mfj'?'$500K MFJ':'$250K Single'}) covers the entire gain.</div></div>
+    </div>`:`<div class="card"><div class="card-title">📊 Capital Gains Tax</div><table><tbody>
+      ${[[`Federal (${(cg.fR*100).toFixed(0)}%)`,cg.ft],['NYS (6.85%)',cg.st],['NYC (3.876%)',cg.ct]].map(([l,v])=>`<tr><td style="font-weight:600;">${l}</td><td style="text-align:right;font-weight:700;color:var(--red);">${fmt(v)}</td></tr>`).join('')}
+      <tr class="total-row"><td>TOTAL TAX</td><td style="text-align:right;font-size:16px;color:var(--red);">${fmt(cg.tt)}</td></tr>
+    </tbody></table></div>`}
+
+    <div class="card">
+      <div class="card-title">Proceeds Breakdown</div>
+      ${barChart([{l:'Sale Price',v:S.salePrice,c:'#1C5355'},{l:'Closing Costs',v:cc.tot,c:'#D94F4F'},{l:'Mortgage Payoff',v:P.balance,c:'#E8A838'},{l:'Net Proceeds',v:netAfterTax,c:'#4EB8BC'}])}
+    </div>
+
+    <hr class="divider">
+
+    <div class="grid grid-2">
+      <div class="card">
+        <div class="card-title" style="color:var(--primary);">✓ Advantages</div>
+        ${['Immediate cash of ~'+fmtK(net),'Unlock buying power for your next home','No landlord headaches or tenant risk','Tax-free under Section 121 today','Eliminate '+fmt(P.pi+P.hoa+P.tax)+'/mo carrying costs'].map(t=>`<div class="pros-item">${t}</div>`).join('')}
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--red);">✗ Trade-offs</div>
+        ${['Lose the irreplaceable 2.5% mortgage rate','Give up potential future appreciation','Transaction costs eat ~7–8% round trip','Must coordinate timing of sale + purchase','Emotional cost of letting go of your home'].map(t=>`<div class="cons-item">${t}</div>`).join('')}
+      </div>
+    </div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SLIDE 3: RENT
+// ═══════════════════════════════════════════════════════════════
+function renderRentSlide(idx,ra,eqP){
+  const last=eqP[eqP.length-1]||{eq:0,cum:0,comb:0};
+  const expD=[{l:'Mortgage',v:P.pi,c:COL[0]},{l:'HOA',v:P.hoa,c:COL[1]},{l:'Taxes',v:P.tax,c:COL[2]},{l:'Maintenance',v:Math.round(ra.mt),c:COL[3]}];
+  if(ra.mg>0)expD.push({l:'Mgmt',v:Math.round(ra.mg),c:COL[4]});
+  return`<div class="slide-inner">
+    <div class="slide-header">
+      <div class="slide-num">Slide 3 of ${TOTAL_SLIDES-1}</div>
+      <div class="slide-title">Option B: Rent the Property</div>
+      <div class="slide-subtitle">What happens if you keep the unit, find a tenant, and hold as an investment.</div>
+    </div>
+
+    <div class="explainer">
+      <strong>The rental calculus:</strong> Keeping the property means you become a landlord. Your income is rent; your costs are the mortgage, HOA, taxes, maintenance, and any management fees. The key question is whether the rent covers these costs — and whether the equity appreciation and tax benefits make up for any shortfall.
+    </div>
+
+    <div class="card">
+      <div class="card-title">🎛️ Rental Assumptions</div>
+      <div class="grid grid-2" style="gap:0 24px;">
+        <div class="slider-wrap"><div class="slider-head"><span class="label">Monthly Rent</span><span class="val">$${S.rent.toLocaleString()}</span></div><input type="range" id="sl-rent" min="4000" max="7000" step="100" value="${S.rent}" oninput="onDynamic()"></div>
+        <div class="slider-wrap"><div class="slider-head"><span class="label">Vacancy Reserve</span><span class="val">${S.vacancy}%</span></div><input type="range" id="sl-vac" min="0" max="15" step="1" value="${S.vacancy}" oninput="onDynamic()"></div>
+        <div class="slider-wrap"><div class="slider-head"><span class="label">Maintenance</span><span class="val">${S.maint}%</span></div><input type="range" id="sl-mt" min="5" max="20" step="1" value="${S.maint}" oninput="onDynamic()"></div>
+        <div class="slider-wrap"><div class="slider-head"><span class="label">Property Mgmt</span><span class="val">${S.mgmt}%</span></div><input type="range" id="sl-mg" min="0" max="12" step="1" value="${S.mgmt}" oninput="onDynamic()"></div>
+      </div>
+    </div>
+
+    <div class="explainer tip">
+      <strong>Vacancy & maintenance reserves</strong> are not actual monthly bills — they're amounts you set aside each month to cover the inevitable gaps. A 5% vacancy reserve on $5,500/mo means budgeting as if you'll have ~18 empty days/year. Maintenance reserve covers repairs, appliance replacement, and unit turnover costs. Professional property management typically runs 8–12% of collected rent.
+    </div>
+
+    <div class="grid grid-3">
+      <div class="card"><div class="stat-center"><div class="stat-label">Effective Income</div><div class="stat-value" style="color:var(--primary);">${fmt(ra.egi)}</div><div class="stat-sub">/month</div></div></div>
+      <div class="card"><div class="stat-center"><div class="stat-label">Total Expenses</div><div class="stat-value" style="color:var(--red);">${fmt(ra.exp)}</div><div class="stat-sub">/month</div></div></div>
+      <div class="card"><div class="stat-center"><div class="stat-label">Net Cash Flow</div><div class="stat-value" style="color:${ra.cf>=0?'var(--primary)':'var(--red)'};">${fmt(ra.cf)}</div><div class="stat-sub">/month</div></div></div>
+    </div>
+
+    <div class="grid grid-2">
+      <div class="card"><div class="card-title">Expense Breakdown</div>${donut(expD)}</div>
+      <div class="card"><div class="grid grid-2">
+        <div class="stat-center"><div class="stat-label">Annual Cash Flow</div><div class="stat-value" style="color:${ra.acf>=0?'var(--primary)':'var(--red)'};">${fmt(ra.acf)}</div><div class="stat-sub">/year</div></div>
+        <div class="stat-center"><div class="stat-label">Return on Equity</div><div class="stat-value" style="color:var(--accent);">${ra.roe.toFixed(1)}%</div><div class="stat-sub">Annual ROE</div></div>
+      </div></div>
+    </div>
+
+    <div class="explainer">
+      <strong>Return on Equity (ROE)</strong> measures what your trapped equity is earning you. If you have $285K in equity and the property generates $312/yr in cash flow, that's a 0.1% return. Compare this to simply investing that $285K in the market — even a conservative portfolio might return 5–7%. This is the "opportunity cost" of keeping the property.
+    </div>
+
+    <hr class="divider">
+
+    <div class="card">
+      <div class="card-title">📉 Depreciation Tax Benefit</div>
+      <div class="grid grid-3" style="margin-bottom:16px;">
+        <div class="stat-center"><div class="stat-label">Building Value (80%)</div><div class="stat-value" style="font-size:20px;">${fmt(ra.bv)}</div></div>
+        <div class="stat-center"><div class="stat-label">Annual Depreciation</div><div class="stat-value" style="font-size:20px;color:var(--accent);">${fmt(ra.dep)}</div></div>
+        <div class="stat-center"><div class="stat-label">Annual Tax Savings</div><div class="stat-value" style="font-size:20px;color:var(--primary);">${fmt(ra.sav)}</div></div>
+      </div>
+    </div>
+
+    <div class="explainer">
+      <strong>Depreciation</strong> is a "paper loss" the IRS lets rental property owners claim even though the property may be gaining value. You deduct the building's value (not land) over 27.5 years, reducing your taxable rental income. At a 24% tax bracket, this saves you ${fmt(ra.sav)}/year. But this benefit is <em>not free</em> — see the recapture warning below.
+    </div>
+
+    <div class="alert-box red">
+      <span style="font-size:24px;flex-shrink:0;">⚠️</span>
+      <div>
+        <div style="font-weight:800;font-size:14px;color:var(--red);margin-bottom:8px;">DEPRECIATION RECAPTURE (Section 1250)</div>
+        <div class="mono" style="font-size:13px;line-height:1.8;">
+          ${S.yrsRent} years × ${fmt(ra.dep)}/yr = <strong>${fmt(ra.td)}</strong> total depreciation<br>
+          Recapture tax @ 25% = <strong style="color:var(--red);">${fmt(ra.rc)}</strong>
+        </div>
+        <div style="margin-top:8px;font-size:13px;">If you eventually sell after renting, the IRS "recaptures" all the depreciation you claimed and taxes it as ordinary income at 25%. The tax savings during the rental period are partially clawed back at sale.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📈 ${S.yrsRent}-Year Equity Projection</div>
+      ${areaChart(eqP)}
+      <div class="grid grid-3" style="margin-top:16px;border-top:2px solid #000;padding-top:16px;">
+        <div class="stat-center"><div class="stat-label">Year ${S.yrsRent} Equity</div><div class="stat-value" style="font-size:20px;">${fmt(last.eq)}</div></div>
+        <div class="stat-center"><div class="stat-label">Total Cash Flow</div><div class="stat-value" style="font-size:20px;color:var(--accent);">${fmt(last.cum)}</div></div>
+        <div class="stat-center"><div class="stat-label">Combined</div><div class="stat-value" style="font-size:20px;color:var(--primary);">${fmt(last.comb)}</div></div>
+      </div>
+    </div>
+
+    <hr class="divider">
+    <div class="grid grid-2">
+      <div class="card"><div class="card-title" style="color:var(--primary);">✓ Advantages</div>
+        ${[`Keep the 2.5% rate`,'Build equity via tenant payments',`${fmt(ra.sav)}/yr depreciation tax benefit`,'Potential appreciation upside','Passive income stream'].map(t=>`<div class="pros-item">${t}</div>`).join('')}
+      </div>
+      <div class="card"><div class="card-title" style="color:var(--red);">✗ Trade-offs</div>
+        ${[`Cash flow is only ${fmt(ra.cf)}/mo`,`${fmt(ra.rc)} recapture tax if you sell later`,'Landlord liability and headaches','Section 121 exclusion expires 3yrs after move-out','~$286K equity locked in illiquid asset'].map(t=>`<div class="cons-item">${t}</div>`).join('')}
+      </div>
+    </div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SLIDE 4: BUYING POWER
+// ═══════════════════════════════════════════════════════════════
+function renderBuySlide(idx,bp,sell){
+  const{a,b}=bp,delta=a.mx-b.mx;
+  const ccTable=(cc,lbl)=>`<h4 style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:12px 0 8px;">${lbl} — Buyer Closing Costs</h4>
+    <table style="font-size:12px;"><tbody>
+    ${[[`Mortgage Rec. Tax (${(cc.mr*100).toFixed(2)}%)`,cc.mrt],[`Mansion Tax (${(cc.mn*100).toFixed(1)}%)`,cc.man],['Title Insurance',cc.ti],['Attorney',cc.at],['Inspection/Misc',cc.ins]].map(([l,v])=>`<tr><td style="padding:5px 6px;">${l}</td><td style="padding:5px 6px;text-align:right;font-weight:700;">${fmt(v)}</td></tr>`).join('')}
+    <tr class="total-row"><td style="padding:7px 6px;">Total (${cc.eff.toFixed(1)}%)</td><td style="padding:7px 6px;text-align:right;color:var(--red);">${fmt(cc.tot)}</td></tr></tbody></table>`;
+  const pitiBox=(o)=>`<div style="margin-top:16px;padding:12px;background:#f5f5f0;border:1px solid #ddd;">
+    <h5 style="margin-bottom:8px;font-size:12px;font-weight:800;text-transform:uppercase;">Monthly PITI on ${fmtK(S.newHomePrice)} Home</h5>
+    <div class="mono" style="font-size:12px;display:flex;flex-direction:column;gap:4px;">
+      <div style="display:flex;justify-content:space-between;"><span>P&I (${pc(S.newRate)})</span><span>${fmt(o.pi)}</span></div>
+      <div style="display:flex;justify-content:space-between;"><span>Est. Taxes</span><span>${fmt(o.tx)}</span></div>
+      <div style="display:flex;justify-content:space-between;"><span>Est. Insurance</span><span>${fmt(o.ins)}</span></div>
+      <div style="display:flex;justify-content:space-between;border-top:2px solid #000;padding-top:4px;font-weight:900;"><span>TOTAL PITI</span><span style="color:var(--primary);">${fmt(o.piti)}</span></div>
+    </div></div>`;
+  return`<div class="slide-inner">
+    <div class="slide-header">
+      <div class="slide-num">Slide 4 of ${TOTAL_SLIDES-1}</div>
+      <div class="slide-title">Buying Power Comparison</div>
+      <div class="slide-subtitle">How much house can you afford under each scenario?</div>
+    </div>
+
+    <div class="explainer">
+      <strong>The real question:</strong> It's not just "sell or rent" — it's what each option means for your <em>next</em> home. Selling frees up ${fmtK(sell.net)} for a down payment. Keeping the property means your down payment comes from the $300K TOD account. We compare both paths side by side, including NYC buyer closing costs.
+    </div>
+
+    <div class="card">
+      <div class="card-title">🎛️ New Mortgage Assumptions</div>
+      <div class="grid grid-2" style="gap:0 24px;">
+        <div class="slider-wrap"><div class="slider-head"><span class="label">New Mortgage Rate</span><span class="val">${S.newRate}%</span></div><input type="range" id="sl-nr" min="5" max="8" step="0.125" value="${S.newRate}" oninput="onDynamic()"></div>
+        <div class="slider-wrap"><div class="slider-head"><span class="label">Down Payment %</span><span class="val">${S.dpPct}%</span></div><input type="range" id="sl-dp" min="10" max="30" step="1" value="${S.dpPct}" oninput="onDynamic()"></div>
+      </div>
+    </div>
+
+    <div class="explainer tip">
+      <strong>NYC buyer closing costs</strong> are significant. The <em>Mortgage Recording Tax</em> alone is 1.8–2.05% of your loan amount. If the purchase price hits $1M, there's an additional <em>Mansion Tax</em> (starting at 1%). These costs come out of your down payment funds, reducing your effective buying power.
+    </div>
+
+    <div class="grid grid-2">
+      <div class="card">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;"><span class="badge badge-primary">Option A</span><span style="font-weight:800;">Sell & Buy</span></div>
+        <div class="mono" style="font-size:13px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:8px;"><span>Net Sale Proceeds</span><strong>${fmt(a.d)}</strong></div>
+          ${ccTable(a.cc,'Option A')}
+          <div style="display:flex;justify-content:space-between;border-top:2px solid #000;padding-top:8px;margin-top:8px;"><span style="font-weight:800;">Net for Down Payment</span><strong style="color:var(--primary);">${fmt(a.nd)}</strong></div>
+        </div>${pitiBox(a)}
+      </div>
+      <div class="card">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;"><span class="badge badge-accent">Option B</span><span style="font-weight:800;">Keep & Buy</span></div>
+        <div class="mono" style="font-size:13px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:8px;"><span>TOD Account</span><strong>${fmt(b.d)}</strong></div>
+          ${ccTable(b.cc,'Option B')}
+          <div style="display:flex;justify-content:space-between;border-top:2px solid #000;padding-top:8px;margin-top:8px;"><span style="font-weight:800;">Net for Down Payment</span><strong style="color:var(--accent);">${fmt(b.nd)}</strong></div>
+        </div>${pitiBox(b)}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Max Buying Power</div>
+      ${barChart([{l:'Sell & Buy (Option A)',v:Math.max(0,a.mx),c:'#1C5355'},{l:'Keep & Buy (Option B)',v:Math.max(0,b.mx),c:'#4EB8BC'}])}
+      ${delta>0?`<div style="text-align:center;margin-top:16px;"><span class="badge badge-primary">+ ${fmtK(delta)} BY SELLING</span></div>`
+        :delta<0?`<div style="text-align:center;margin-top:16px;"><span class="badge badge-accent">+ ${fmtK(Math.abs(delta))} BY KEEPING (TOD)</span></div>`:''}
+    </div>
+
+    <div class="explainer">
+      <strong>Key insight:</strong> With $300K in the TOD account, you actually have ${delta<0?'<strong>more</strong>':'less'} buying power by keeping the property than by selling it. ${delta<0?'The TOD provides a larger net down payment ('+fmt(b.nd)+') than sale proceeds ('+fmt(a.nd)+') after closing costs.':'Sale proceeds exceed the TOD balance after closing costs.'} The trade-off: keeping the property means carrying two mortgages simultaneously.
+    </div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SLIDE 5: VERDICT
+// ═══════════════════════════════════════════════════════════════
+function renderVerdict(idx,sell,ra,bp){
+  const rows=[
+    {f:'Immediate Cash',a:fmt(sell.net),b:'$0',w:'A'},
+    {f:'Monthly Cash Flow',a:'$0',b:fmt(ra.cf)+'/mo',w:ra.cf>0?'B':'A'},
+    {f:'Buying Power',a:fmtK(bp.a.mx),b:fmtK(bp.b.mx),w:bp.a.mx>bp.b.mx?'A':'B'},
+    {f:'Mortgage Rate',a:'Lose 2.5%',b:'Keep 2.5%',w:'B'},
+    {f:'Capital Gains Tax',a:fmt(sell.cg.tt),b:'N/A',w:sell.cg.ex?'A':'B'},
+    {f:'Depreciation Benefit',a:'$0/yr',b:fmt(ra.sav)+'/yr',w:'B'},
+    {f:'Landlord Risk',a:'None',b:'High',w:'A'},
+    {f:'Tax Complexity',a:'Simple',b:'Complex',w:'A'}
+  ];
+  const aw=rows.filter(r=>r.w==='A').length,bw=rows.filter(r=>r.w==='B').length;
+  const strongRent=ra.cf>1000;
+  return`<div class="slide-inner">
+    <div class="slide-header">
+      <div class="slide-num">Slide 5 of ${TOTAL_SLIDES-1}</div>
+      <div class="slide-title">The Verdict</div>
+      <div class="slide-subtitle">Weighing all factors side by side.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">⚖️ Factor-by-Factor Comparison</div>
+      <table>
+        <thead><tr><th>Factor</th><th style="text-align:center;color:var(--primary);">Sell</th><th style="text-align:center;color:var(--accent);">Keep</th><th style="text-align:center;">Edge</th></tr></thead>
+        <tbody>${rows.map(r=>`<tr>
+          <td style="font-weight:700;">${r.f}</td>
+          <td class="mono" style="text-align:center;font-weight:600;${r.w==='A'?'background:var(--primary-light);color:var(--primary);':'color:var(--muted);'}">${r.a}</td>
+          <td class="mono" style="text-align:center;font-weight:600;${r.w==='B'?'background:var(--accent-light);color:var(--primary);':'color:var(--muted);'}">${r.b}</td>
+          <td style="text-align:center;"><span class="badge ${r.w==='A'?'badge-primary':'badge-accent'}">${r.w==='A'?'Sell':'Keep'}</span></td>
+        </tr>`).join('')}</tbody>
+      </table>
+      <div class="mono" style="display:flex;gap:16px;justify-content:center;margin-top:16px;font-size:14px;font-weight:700;">
+        <span style="color:var(--primary);">Sell: ${aw}</span> <span style="color:var(--muted);">|</span> <span style="color:var(--accent);">Keep: ${bw}</span>
+      </div>
+    </div>
+
+    <div class="callout-big">
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:2px;opacity:0.7;margin-bottom:4px;">Recommendation</div>
+      <div style="font-size:24px;font-weight:900;margin-bottom:12px;font-family:var(--serif);">
+        ${strongRent?'Sell If Buying, Consider Keeping If Not Moving':'Sell the Property'}
+      </div>
+      <div style="font-size:14px;line-height:1.6;opacity:0.9;">
+        ${strongRent
+          ?`With ${fmt(ra.cf)}/mo positive cash flow, keeping the property is defensible if you're not purchasing a new home. However, if you need to buy, selling unlocks ${fmtK(sell.net)} in tax-free proceeds while the Section 121 window is open.`
+          :`With only ${fmt(ra.cf)}/mo cash flow, a 0.1% return on equity, and the Section 121 exclusion window still open, selling is the stronger play. The 2.5% rate is valuable, but the marginal cash flow and landlord complexity don't justify tying up ~$286K in equity. Selling generates ${fmtK(sell.net)} in tax-free proceeds that can be redeployed.`
+        }
+      </div>
+    </div>
+
+    <div class="explainer">
+      <strong>When keeping might make more sense:</strong> (1) You are <em>not</em> planning to buy another home and want passive income. (2) Rents rise significantly above $6,500/mo, improving cash flow. (3) You want to hold 10+ years for long-term appreciation. (4) You plan to move back into the unit within 3 years, preserving the 121 exclusion.
+    </div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SLIDE 6: NEXT STEPS
+// ═══════════════════════════════════════════════════════════════
+function renderNextSteps(){
+  return`<div class="slide-inner">
+    <div class="slide-header">
+      <div class="slide-num">Slide 6 of ${TOTAL_SLIDES-1}</div>
+      <div class="slide-title">Next Steps</div>
+      <div class="slide-subtitle">Concrete action items to move forward, regardless of your decision.</div>
+    </div>
+
+    <div class="explainer">
+      <strong>No pressure to decide today.</strong> The Section 121 exclusion window is open as long as you sell within 3 years of moving out. But the Brooklyn spring market (March–May) is historically the strongest for sellers. Here's a practical checklist for either path.
+    </div>
+
+    <div class="card">
+      <div class="card-title">📝 If You're Leaning Toward Selling</div>
+      ${['Consult a tax attorney to confirm Section 121 eligibility and timing','Request a formal broker CMA (comparative market analysis) to validate the $575K estimate','Interview 2–3 listing agents — negotiate commission rate (aim for 4.5–5%)','Target a spring listing (March–May) for peak Brooklyn demand','Coordinate with your buyer-side timeline to avoid a gap or bridge loan'].map((t,i)=>
+        `<div class="step-row"><div class="step-num">${i+1}</div><span style="font-size:14px;padding-top:4px;">${t}</span></div>`).join('')}
+    </div>
+
+    <div class="card">
+      <div class="card-title">📝 If You're Leaning Toward Keeping</div>
+      ${['Get a rental market analysis — confirm realistic rent for a 2BR in the building','Draft a lease with a real estate attorney (NYC tenant law is complex)','Decide on self-management vs. hiring a property manager (budget 8–10%)','Set up a dedicated landlord bank account for income, reserves, and expenses','Consult a CPA on depreciation, Schedule E filing, and 121 exclusion timing'].map((t,i)=>
+        `<div class="step-row"><div class="step-num">${i+1}</div><span style="font-size:14px;padding-top:4px;">${t}</span></div>`).join('')}
+    </div>
+
+    <div class="explainer tip">
+      <strong>A note on the TOD account:</strong> The $300K transfer-on-death account gives you significant flexibility. Whether you sell or keep, those funds can serve as your next home's down payment. The question is whether you <em>also</em> want the ~$242K in sale proceeds on top of it — or whether the $300K alone is sufficient for the home you want.
+    </div>
+
+    <div style="text-align:center;margin-top:32px;padding:32px;background:#fff;border:2px solid #000;box-shadow:var(--shadow);">
+      <div style="font-family:var(--serif);font-size:22px;color:var(--primary);margin-bottom:8px;">Questions?</div>
+      <div style="font-size:14px;color:var(--muted);line-height:1.6;">This analysis was prepared by Iconoclastic Capital Management.<br>All assumptions are adjustable via the ⚙ settings panel.</div>
+    </div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+syncInputs();
+goTo(0);
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight'&&slide<TOTAL_SLIDES-1)goTo(slide+1);
+  if(e.key==='ArrowLeft'&&slide>0)goTo(slide-1);
+  if(e.key==='Escape')closeSettings();
+});
+</script>
+</body>
+</html>
